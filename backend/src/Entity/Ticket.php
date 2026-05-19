@@ -40,6 +40,10 @@ class Ticket
     #[ORM\ManyToOne(inversedBy: 'assignedTickets')]
     private ?User $assignedTo = null;
 
+    #[ORM\ManyToOne(inversedBy: 'tickets')]
+    #[ORM\JoinColumn(nullable: false)]
+    private ?Project $project = null;
+
     public function __construct()
     {
         // Date de création automatique
@@ -149,6 +153,18 @@ class Ticket
     public function setAssignedTo(?User $assignedTo): static
     {
         $this->assignedTo = $assignedTo;
+
+        return $this;
+    }
+
+    public function getProject(): ?Project
+    {
+        return $this->project;
+    }
+
+    public function setProject(?Project $project): static
+    {
+        $this->project = $project;
 
         return $this;
     }
