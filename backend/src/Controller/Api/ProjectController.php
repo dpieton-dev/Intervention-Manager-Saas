@@ -33,10 +33,8 @@ class ProjectController extends AbstractController
     }
 
     #[Route('/api/projects', name: 'api_project_create', methods: ['POST'])]
-    public function create(
-        Request $request,
-        EntityManagerInterface $entityManager
-    ): JsonResponse {
+    public function create(Request $request, EntityManagerInterface $entityManager): JsonResponse 
+    {
         $data = json_decode($request->getContent(), true);
 
         $project = new Project();
@@ -63,11 +61,8 @@ class ProjectController extends AbstractController
     }
 
     #[Route('/api/projects/{id}', name: 'api_project_update', methods: ['PUT'])]
-    public function update(
-        Project $project,
-        Request $request,
-        EntityManagerInterface $entityManager
-    ): JsonResponse {
+    public function update(Project $project, Request $request, EntityManagerInterface $entityManager): JsonResponse 
+    {
         $data = json_decode($request->getContent(), true);
 
         $project->setName($data['name'] ?? $project->getName());
@@ -101,15 +96,57 @@ class ProjectController extends AbstractController
     }
 
     #[Route('/api/projects/{id}', name: 'api_project_delete', methods: ['DELETE'])]
-    public function delete(
-        Project $project,
-        EntityManagerInterface $entityManager
-    ): JsonResponse {
+    public function delete(Project $project, EntityManagerInterface $entityManager): JsonResponse 
+    {
         $entityManager->remove($project);
         $entityManager->flush();
 
         return $this->json([
             'message' => 'Project deleted successfully',
+        ]);
+    }
+
+    #[Route('/api/projects/{id}/board', name: 'api_project_board', methods: ['GET'])]
+    public function board(Project $project): JsonResponse
+    {
+        // Structure Kanban
+        $board = [
+            'todo' => [],
+            'in_progress' => [],
+            'testing' => [],
+            'done' => [],
+        ];
+
+        // Parcours des tickets du projet
+        foreach ($project->getTickets() as $ticket) {
+
+            $ticketData = [
+                'id' => $ticket->getId(),
+                'title' => $ticket->getTitle(),
+                'description' => $ticket->getDescription(),
+                'priority' => $ticket->getPriority(),
+
+                'createdBy' => $ticket->getCreatedBy() ? [
+                    'id' => $ticket->getCreatedBy()->getId(),
+                    'email' => $ticket->getCreatedBy()->getEmail(),
+                ] : null,
+
+                'assignedTo' => $ticket->getAssignedTo() ? [
+                    'id' => $ticket->getAssignedTo()->getId(),
+                    'email' => $ticket->getAssignedTo()->getEmail(),
+                ] : null,
+            ];
+
+            // Ajoute le ticket dans la bonne colonne
+            $board[$ticket->getStatus()][] = $ticketData;
+        }
+
+        return $this->json([
+            'project' => [
+                'id' => $project->getId(),
+                'name' => $project->getName(),
+            ],
+            'board' => $board,
         ]);
     }
 

@@ -41,12 +41,19 @@ class Project
     #[ORM\OneToMany(targetEntity: Ticket::class, mappedBy: 'project')]
     private Collection $tickets;
 
+    /**
+     * @var Collection<int, ProjectMember>
+     */
+    #[ORM\OneToMany(targetEntity: ProjectMember::class, mappedBy: 'project')]
+    private Collection $members;
+
     public function __construct()
     {
         $this->createdAt = new DateTimeImmutable();
         // Statut par défaut du projet
         $this->status = 'active';
         $this->tickets = new ArrayCollection();
+        $this->members = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -150,6 +157,36 @@ class Project
             // set the owning side to null (unless already changed)
             if ($ticket->getProject() === $this) {
                 $ticket->setProject(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, ProjectMember>
+     */
+    public function getMembers(): Collection
+    {
+        return $this->members;
+    }
+
+    public function addMember(ProjectMember $member): static
+    {
+        if (!$this->members->contains($member)) {
+            $this->members->add($member);
+            $member->setProject($this);
+        }
+
+        return $this;
+    }
+
+    public function removeMember(ProjectMember $member): static
+    {
+        if ($this->members->removeElement($member)) {
+            // set the owning side to null (unless already changed)
+            if ($member->getProject() === $this) {
+                $member->setProject(null);
             }
         }
 

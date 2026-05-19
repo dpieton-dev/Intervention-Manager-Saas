@@ -49,11 +49,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\OneToMany(targetEntity: Ticket::class, mappedBy: 'assignedTo')]
     private Collection $assignedTickets;
 
+    /**
+     * @var Collection<int, ProjectMember>
+     */
+    #[ORM\OneToMany(targetEntity: ProjectMember::class, mappedBy: 'user')]
+    private Collection $projectMemberships;
+
     public function __construct()
     {
         $this->createdAt = new DateTimeImmutable();
         $this->tickets = new ArrayCollection();
         $this->assignedTickets = new ArrayCollection();
+        $this->projectMemberships = new ArrayCollection();
     }
     
     public function getId(): ?int
@@ -203,6 +210,36 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
             // set the owning side to null (unless already changed)
             if ($assignedTicket->getAssignedTo() === $this) {
                 $assignedTicket->setAssignedTo(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, ProjectMember>
+     */
+    public function getProjectMemberships(): Collection
+    {
+        return $this->projectMemberships;
+    }
+
+    public function addProjectMembership(ProjectMember $projectMembership): static
+    {
+        if (!$this->projectMemberships->contains($projectMembership)) {
+            $this->projectMemberships->add($projectMembership);
+            $projectMembership->setUser($this);
+        }
+
+        return $this;
+    }
+
+    public function removeProjectMembership(ProjectMember $projectMembership): static
+    {
+        if ($this->projectMemberships->removeElement($projectMembership)) {
+            // set the owning side to null (unless already changed)
+            if ($projectMembership->getUser() === $this) {
+                $projectMembership->setUser(null);
             }
         }
 
