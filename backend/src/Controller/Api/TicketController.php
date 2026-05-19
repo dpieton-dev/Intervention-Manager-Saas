@@ -11,6 +11,7 @@ use App\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use App\Repository\UserRepository;
+use App\Repository\ProjectRepository;
 
 class TicketController extends AbstractController
 {
@@ -29,7 +30,7 @@ class TicketController extends AbstractController
     }
 
     #[Route('/api/tickets', name: 'api_ticket_create', methods: ['POST'])]
-    public function create(Request $request, EntityManagerInterface $entityManager): JsonResponse 
+    public function create(Request $request, EntityManagerInterface $entityManager, ProjectRepository $projectRepository): JsonResponse 
     {
         // Récupération de l'utilisateur via le token JWT
         /** @var User|null $user */
@@ -45,6 +46,21 @@ class TicketController extends AbstractController
         // Récuération des données JSON envoyées
         $data = json_decode($request->getContent(), true);
         
+        // Récupération du Projet
+        if (!isset($data['projectId'])) {
+            return $this->json([
+                'message' => 'projectId is required',
+            ], 400);
+        }
+
+        $project = $projectRepository->find($data['projectId']);
+
+        if (!$project) {
+            return $this->json([
+                'message' => 'Project not found',
+            ], 404);
+        }
+
         // Création du ticket
         $ticket = new Ticket();
 
@@ -57,6 +73,7 @@ class TicketController extends AbstractController
         // Créateur automatique du Ticket
         $ticket->setCreatedBy($user);
         // AssignedTo reste null par défaut
+        $ticket->setProject($project);
 
         // Sauvegarde en BDD
         $entityManager->persist($ticket);
@@ -114,12 +131,8 @@ class TicketController extends AbstractController
     }
 
     #[Route('/api/tickets/{id}/assign', name: 'api_ticket_assign', methods: ['PATCH'])]
-    public function assign(
-        Ticket $ticket,
-        Request $request,
-        UserRepository $userRepository,
-        EntityManagerInterface $entityManager
-    ): JsonResponse {
+    public function assign(Ticket $ticket, Request $request, UserRepository $userRepository, EntityManagerInterface $entityManager): JsonResponse 
+    {
         // Récupère le JSON envoyé
         $data = json_decode($request->getContent(), true);
 
@@ -154,7 +167,6 @@ class TicketController extends AbstractController
         ]);
     }
 
-
     private function formatTicket(Ticket $ticket): array
     {
         return [
@@ -165,15 +177,17 @@ class TicketController extends AbstractController
             'priority' => $ticket->getPriority(),
             'createdAt' => $ticket->getCreatedAt()?->format('Y-m-d H:i:s'),
             'updatedAt' => $ticket->getUpdateAt()?->format('Y-m-d H:i:s'),
-
             'createdBy' => $ticket->getCreatedBy() ? [
                 'id' => $ticket->getCreatedBy()->getId(),
                 'email' => $ticket->getCreatedBy()->getEmail(),
             ] : null,
-
             'assignedTo' => $ticket->getAssignedTo() ? [
                 'id' => $ticket->getAssignedTo()->getId(),
                 'email' => $ticket->getAssignedTo()->getEmail(),
+            ] : null,
+            'project' => $ticket->getProject() ? [
+                'id' => $ticket->getProject()->getId(),
+                'name' => $ticket->getProject()->getName(),
             ] : null,
         ];
     }
