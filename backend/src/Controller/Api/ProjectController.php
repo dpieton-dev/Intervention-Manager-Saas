@@ -3,7 +3,10 @@
 namespace App\Controller\Api;
 
 use App\Entity\Project;
+use App\Entity\ProjectMember;
+use App\Entity\User;
 use App\Repository\ProjectRepository;
+use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -13,17 +16,33 @@ use Symfony\Component\Routing\Attribute\Route;
 class ProjectController extends AbstractController
 {
     #[Route('/api/projects', name: 'api_projects', methods: ['GET'])]
-    public function index(ProjectRepository $projectRepository): JsonResponse
+    public function index(): JsonResponse
     {
-        $projects = $projectRepository->findAll();
+        /** @var User|null $user */
+        $user = $this->getUser();
 
-        $data = [];
-
-        foreach ($projects as $project) {
-            $data[] = $this->formatProject($project);
+        if (!$user instanceof User) {
+            return $this->json([
+                'message' => 'User not authenticated',
+            ], 401);
         }
 
-        return $this->json($data);
+        $projects = [];
+
+        // Parcours des memberships du user connecté
+        foreach ($user->getProjectMemberships() as $membership) {
+
+            $project = $membership->getProject();
+
+            $projects[] = [
+                ...$this->formatProject($project),
+
+                // Rôle du user dans le projet
+                'membershipRole' => $membership->getRole(),
+            ];
+        }
+
+        return $this->json($projects);
     }
 
     #[Route('/api/projects/{id}', name: 'api_project_show', methods: ['GET'])]
@@ -148,6 +167,79 @@ class ProjectController extends AbstractController
             ],
             'board' => $board,
         ]);
+    }
+
+    #[Route('/api/projects/{id}/members', name: 'api_project_add_member', methods: ['POST'])]
+    public function addMember(Project $project, Request $request, UserRepository $userRepository, EntityManagerInterface $entityManager): JsonResponse 
+    {
+        // Récupération des données JSON envoyées
+        $data = json_decode($request->getContent(), true);
+
+        // Vérifie que userId est présent
+        if (!isset($data['userId'])) {
+            return $this->json([
+                'message' => 'userId is required',
+            ], 400);
+        }
+
+        // Vérifie que role est présent
+        if (!isset($data['role'])) {
+            return $this->json([
+                'message' => 'role is required',
+            ], 400);
+        }
+
+        // Rôles autorisés dans un projet
+        $allowedRoles = [
+            'project_manager',
+            'lead_developer',
+            'developer',
+            'tester',
+            'devops',
+        ];
+
+        // Vérifie que le rôle envoyé est valide
+        if (!in_array($data['role'], $allowedRoles, true)) {
+            return $this->json([
+                'message' => 'Invalid role',
+                'allowedRoles' => $allowedRoles,
+            ], 400);
+        }
+
+        // Recherche de l’utilisateur à ajouter au projet
+        $user = $userRepository->find($data['userId']);
+
+        if (!$user) {
+            return $this->json([
+                'message' => 'User not found',
+            ], 404);
+        }
+
+        // Création du lien User <-> Project
+        $member = new ProjectMember();
+        $member->setProject($project);
+        $member->setUser($user);
+        $member->setRole($data['role']);
+
+        // Sauvegarde en base
+        $entityManager->persist($member);
+        $entityManager->flush();
+
+        return $this->json([
+            'message' => 'Member added successfully',
+            'member' => [
+                'id' => $member->getId(),
+                'role' => $member->getRole(),
+                'user' => [
+                    'id' => $user->getId(),
+                    'email' => $user->getEmail(),
+                ],
+                'project' => [
+                    'id' => $project->getId(),
+                    'name' => $project->getName(),
+                ],
+            ],
+        ], 201);
     }
 
     private function formatProject(Project $project): array
