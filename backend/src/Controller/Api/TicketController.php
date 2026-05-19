@@ -69,7 +69,7 @@ class TicketController extends AbstractController
         $ticket->setDescription($data['description'] ?? '');
         $ticket->setPriority($data['priority'] ?? '');
         // Statut par défaut
-        $ticket->setStatus('open');
+        $ticket->setStatus('todo');
         // Créateur automatique du Ticket
         $ticket->setCreatedBy($user);
         // AssignedTo reste null par défaut
@@ -163,6 +163,54 @@ class TicketController extends AbstractController
 
         return $this->json([
             'message' => 'Ticket assigned successfully',
+            'ticket' => $this->formatTicket($ticket),
+        ]);
+    }
+
+    #[Route('/api/tickets/{id}/status', name: 'api_ticket_status', methods: ['PATCH'])]
+    public function updateStatus(
+        Ticket $ticket,
+        Request $request,
+        EntityManagerInterface $entityManager
+    ): JsonResponse {
+        // Statuts autorisés dans le workflow Kanban
+        $allowedStatuses = [
+            'todo',
+            'in_progress',
+            'testing',
+            'delivery_recette',
+            'done',
+        ];
+
+        // JSON envoyé
+        $data = json_decode($request->getContent(), true);
+
+        // Vérifie présence du status
+        if (!isset($data['status'])) {
+            return $this->json([
+                'message' => 'status is required',
+            ], 400);
+        }
+
+        // Vérifie validité du status
+        if (!in_array($data['status'], $allowedStatuses, true)) {
+            return $this->json([
+                'message' => 'Invalid status',
+                'allowedStatuses' => $allowedStatuses,
+            ], 400);
+        }
+
+        // Mise à jour du ticket
+        $ticket->setStatus($data['status']);
+
+        // Mise à jour date modification
+        $ticket->setUpdateAt(new \DateTimeImmutable());
+
+        // Sauvegarde
+        $entityManager->flush();
+
+        return $this->json([
+            'message' => 'Ticket status updated successfully',
             'ticket' => $this->formatTicket($ticket),
         ]);
     }

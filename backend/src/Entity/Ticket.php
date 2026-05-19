@@ -50,8 +50,8 @@ class Ticket
         $this->createdAt = new DateTimeImmutable();
         // Date de mise à jour initiale
         $this->updateAt = new DateTimeImmutable();
-        // Statut par défaut du ticket
-        $this->status = 'open';
+        // Statut par défaut du ticket pour le tableau Kanban
+        $this->status = 'todo';
         // Priorité par défaut
         $this->priority = 'medium';
     }
