@@ -13,6 +13,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
+use App\Service\ProjectSecurityService;
 
 class ProjectController extends AbstractController
 {
@@ -131,8 +132,25 @@ class ProjectController extends AbstractController
     }
 
     #[Route('/api/projects/{id}/board', name: 'api_project_board', methods: ['GET'])]
-    public function board(Project $project): JsonResponse
+    public function board(Project $project, ProjectSecurityService $projectSecurityService): JsonResponse
     {
+        // Vérification si user est associé au projet
+        /** @var User|null $user */
+        $user = $this->getUser();
+
+        if (!$user instanceof User) {
+            return $this->json([
+                'message' => 'User not authenticated',
+            ], 401);
+        }
+
+        // Vérifie que le user appartient au projet
+        if (!$projectSecurityService->isProjectMember($project, $user)) {
+            return $this->json([
+                'message' => 'Access denied to this project',
+            ], 403);
+        }
+
         // Structure Kanban
         $board = [
             'todo' => [],
