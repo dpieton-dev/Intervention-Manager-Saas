@@ -6,6 +6,7 @@ use App\Entity\Project;
 use App\Entity\ProjectMember;
 use App\Entity\User;
 use App\Repository\ProjectRepository;
+use App\Repository\ProjectRoleRepository;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -38,7 +39,11 @@ class ProjectController extends AbstractController
                 ...$this->formatProject($project),
 
                 // Rôle du user dans le projet
-                'membershipRole' => $membership->getRole(),
+                'membershipRole' => [
+                    'id' => $membership->getProjectRole()->getId(),
+                    'name' => $membership->getProjectRole()->getName(),
+                    'code' => $membership->getProjectRole()->getCode(),
+                ],
             ];
         }
 
@@ -170,7 +175,8 @@ class ProjectController extends AbstractController
     }
 
     #[Route('/api/projects/{id}/members', name: 'api_project_add_member', methods: ['POST'])]
-    public function addMember(Project $project, Request $request, UserRepository $userRepository, EntityManagerInterface $entityManager): JsonResponse 
+    public function addMember(Project $project,
+    Request $request, UserRepository $userRepository, ProjectRoleRepository $projectRoleRepository, EntityManagerInterface $entityManager): JsonResponse
     {
         // Récupération des données JSON envoyées
         $data = json_decode($request->getContent(), true);
@@ -183,28 +189,12 @@ class ProjectController extends AbstractController
         }
 
         // Vérifie que role est présent
-        if (!isset($data['role'])) {
+        if (!isset($data['projectRoleId'])) {
             return $this->json([
-                'message' => 'role is required',
+                'message' => 'projectRoleId is required',
             ], 400);
         }
 
-        // Rôles autorisés dans un projet
-        $allowedRoles = [
-            'project_manager',
-            'lead_developer',
-            'developer',
-            'tester',
-            'devops',
-        ];
-
-        // Vérifie que le rôle envoyé est valide
-        if (!in_array($data['role'], $allowedRoles, true)) {
-            return $this->json([
-                'message' => 'Invalid role',
-                'allowedRoles' => $allowedRoles,
-            ], 400);
-        }
 
         // Recherche de l’utilisateur à ajouter au projet
         $user = $userRepository->find($data['userId']);
@@ -215,11 +205,20 @@ class ProjectController extends AbstractController
             ], 404);
         }
 
+        // Recherche du Rôle
+        $projectRole = $projectRoleRepository->find($data['projectRoleId']);
+
+        if (!$projectRole) {
+            return $this->json([
+                'message' => 'Project role not found',
+            ], 404);
+        }
+
         // Création du lien User <-> Project
         $member = new ProjectMember();
         $member->setProject($project);
         $member->setUser($user);
-        $member->setRole($data['role']);
+        $member->setProjectRole($projectRole);
 
         // Sauvegarde en base
         $entityManager->persist($member);
@@ -229,7 +228,11 @@ class ProjectController extends AbstractController
             'message' => 'Member added successfully',
             'member' => [
                 'id' => $member->getId(),
-                'role' => $member->getRole(),
+                'projectRole' => [
+                    'id' => $projectRole->getId(),
+                    'name' => $projectRole->getName(),
+                    'code' => $projectRole->getCode(),
+                ],
                 'user' => [
                     'id' => $user->getId(),
                     'email' => $user->getEmail(),

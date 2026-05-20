@@ -22,9 +22,6 @@ class ProjectMember
     #[ORM\JoinColumn(nullable: false)]
     private ?Project $project = null;
 
-    #[ORM\Column(length: 50)]
-    private ?string $role = null;
-
     #[ORM\Column]
     private ?\DateTimeImmutable $createdAt = null;
 
@@ -63,18 +60,6 @@ class ProjectMember
     public function setProject(?Project $project): static
     {
         $this->project = $project;
-
-        return $this;
-    }
-
-    public function getRole(): ?string
-    {
-        return $this->role;
-    }
-
-    public function setRole(string $role): static
-    {
-        $this->role = $role;
 
         return $this;
     }
