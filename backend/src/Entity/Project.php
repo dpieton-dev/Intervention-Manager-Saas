@@ -47,6 +47,12 @@ class Project
     #[ORM\OneToMany(targetEntity: ProjectMember::class, mappedBy: 'project')]
     private Collection $members;
 
+    /**
+     * @var Collection<int, ProjectRole>
+     */
+    #[ORM\OneToMany(targetEntity: ProjectRole::class, mappedBy: 'project')]
+    private Collection $roles;
+
     public function __construct()
     {
         $this->createdAt = new DateTimeImmutable();
@@ -54,6 +60,7 @@ class Project
         $this->status = 'active';
         $this->tickets = new ArrayCollection();
         $this->members = new ArrayCollection();
+        $this->roles = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -187,6 +194,36 @@ class Project
             // set the owning side to null (unless already changed)
             if ($member->getProject() === $this) {
                 $member->setProject(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, ProjectRole>
+     */
+    public function getRoles(): Collection
+    {
+        return $this->roles;
+    }
+
+    public function addRole(ProjectRole $role): static
+    {
+        if (!$this->roles->contains($role)) {
+            $this->roles->add($role);
+            $role->setProject($this);
+        }
+
+        return $this;
+    }
+
+    public function removeRole(ProjectRole $role): static
+    {
+        if ($this->roles->removeElement($role)) {
+            // set the owning side to null (unless already changed)
+            if ($role->getProject() === $this) {
+                $role->setProject(null);
             }
         }
 

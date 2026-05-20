@@ -28,6 +28,10 @@ class ProjectMember
     #[ORM\Column]
     private ?\DateTimeImmutable $createdAt = null;
 
+    #[ORM\ManyToOne(inversedBy: 'members')]
+    #[ORM\JoinColumn(nullable: false)]
+    private ?ProjectRole $projectRole = null;
+
     public function __construct()
     {
         // Date d'ajout du membre au projet
@@ -83,6 +87,18 @@ class ProjectMember
     public function setCreatedAt(\DateTimeImmutable $createdAt): static
     {
         $this->createdAt = $createdAt;
+
+        return $this;
+    }
+
+    public function getProjectRole(): ?ProjectRole
+    {
+        return $this->projectRole;
+    }
+
+    public function setProjectRole(?ProjectRole $projectRole): static
+    {
+        $this->projectRole = $projectRole;
 
         return $this;
     }
