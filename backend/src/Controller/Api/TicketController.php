@@ -13,11 +13,12 @@ use Symfony\Component\HttpFoundation\Request;
 use App\Repository\UserRepository;
 use App\Repository\ProjectRepository;
 use App\Service\ProjectSecurityService;
+use App\Service\ApiResponseService;
 
 class TicketController extends AbstractController
 {
     #[Route('/api/tickets', name: 'api_tickets', methods: ['GET'])]
-    public function index(TicketRepository $ticketRepository): JsonResponse
+    public function index(TicketRepository $ticketRepository, ApiResponseService $apiResponse): JsonResponse
     {
         $tickets = $ticketRepository->findAll();
 
@@ -27,11 +28,12 @@ class TicketController extends AbstractController
             $data[] = $this->formatTicket($ticket);
         }
 
-        return $this->json($data);
+        return $apiResponse->success($data, 'Tickets retrieved successfully');
     }
 
     #[Route('/api/tickets', name: 'api_ticket_create', methods: ['POST'])]
-    public function create(Request $request, EntityManagerInterface $entityManager, ProjectRepository $projectRepository, ProjectSecurityService $projectSecurityService): JsonResponse 
+    public function create(Request $request, EntityManagerInterface $entityManager, 
+    ProjectRepository $projectRepository, ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse): JsonResponse 
     {
         // Récupération de l'utilisateur via le token JWT
         /** @var User|null $user */
@@ -39,9 +41,7 @@ class TicketController extends AbstractController
 
         if (!$user instanceof User)
         {
-            return $this->json([
-                'message' => 'User not authenticated',
-            ], 401);
+            return $apiResponse->error('User not authenticated', 401);
         }
     
         // Récuération des données JSON envoyées
@@ -49,24 +49,18 @@ class TicketController extends AbstractController
         
         // Récupération du Projet
         if (!isset($data['projectId'])) {
-            return $this->json([
-                'message' => 'projectId is required',
-            ], 400);
+            return $apiResponse->error('projectId is required', 400);
         }
 
         $project = $projectRepository->find($data['projectId']);
 
         if (!$project) {
-            return $this->json([
-                'message' => 'Project not found',
-            ], 404);
+            return $apiResponse->error('Project not found', 404);
         }
 
         // Vérifie que l'utilisateur connecté est membre du projet
         if (!$projectSecurityService->isProjectMember($project, $user)) {
-            return $this->json([
-                'message' => 'Access denied to this project',
-            ], 403);
+            return $apiResponse->error('Access denied to this project', 403);
         }
 
         // Création du ticket
@@ -88,67 +82,62 @@ class TicketController extends AbstractController
         $entityManager->flush();
 
         // Réponse JSON
-        return $this->json([
-            'message' => 'Ticket created successfully',
-            'ticket' => $this->formatTicket($ticket),
-        ], 201);
+        return $apiResponse->success(
+            $this->formatTicket($ticket),
+            'Ticket created successfully',
+            201
+        );
     }
 
     #[Route('/api/tickets/{id}', name: 'api_ticket_show', methods: ['GET'])]
-    public function show(Ticket $ticket): JsonResponse
+    public function show(Ticket $ticket, ApiResponseService $apiResponse): JsonResponse
     {
-        return $this->json($this->formatTicket($ticket));
+        return $apiResponse->success(
+            $this->formatTicket($ticket),
+            'Ticket retrieved successfully'
+        );
     }
 
     #[Route('/api/tickets/{id}', name: 'api_ticket_update', methods: ['PUT'])]
-    public function update(Ticket $ticket, Request $request, EntityManagerInterface $entityManager, ProjectSecurityService $projectSecurityService): JsonResponse 
+    public function update(Ticket $ticket, Request $request, EntityManagerInterface $entityManager, 
+    ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse): JsonResponse 
     {
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
 
         if (!$currentUser instanceof User) {
-            return $this->json([
-                'message' => 'User not authenticated',
-            ], 401);
+            return $apiResponse->error('User not authenticated', 401);
         }
 
         if (!$projectSecurityService->isProjectMember($ticket->getProject(), $currentUser)) {
-            return $this->json([
-                'message' => 'Access denied to this project',
-            ], 403);
+            return $apiResponse->error('Access denied to this project', 403);
         }
 
-        // Récupération du JSON envoyé
         $data = json_decode($request->getContent(), true);
 
-        // Mise à jour uniquement si la donnée existe
         $ticket->setTitle($data['title'] ?? $ticket->getTitle());
         $ticket->setDescription($data['description'] ?? $ticket->getDescription());
         $ticket->setStatus($data['status'] ?? $ticket->getStatus());
         $ticket->setPriority($data['priority'] ?? $ticket->getPriority());
-
-        // Date de modification
         $ticket->setUpdateAt(new \DateTimeImmutable());
 
-        // Sauvegarde en base
         $entityManager->flush();
 
-        return $this->json([
-            'message' => 'Ticket updated successfully',
-            'ticket' => $this->formatTicket($ticket),
-        ]);
+        return $apiResponse->success(
+            $this->formatTicket($ticket),
+            'Ticket updated successfully'
+        );
     }
 
     #[Route('/api/tickets/{id}', name: 'api_ticket_delete', methods: ['DELETE'])]
-    public function delete(Ticket $ticket, EntityManagerInterface $entityManager, ProjectSecurityService $projectSecurityService): JsonResponse 
+    public function delete(Ticket $ticket, EntityManagerInterface $entityManager, 
+    ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse): JsonResponse 
     {
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
 
         if (!$currentUser instanceof User) {
-            return $this->json([
-                'message' => 'User not authenticated',
-            ], 401);
+            return $apiResponse->error('User not authenticated', 401);
         }
 
         if (
@@ -158,95 +147,75 @@ class TicketController extends AbstractController
                 'project_manager'
             )
         ) {
-            return $this->json([
-                'message' => 'Only project managers can delete tickets',
-            ], 403);
+            return $apiResponse->error('Only project managers can delete tickets', 403);
         }
-        
-        // Suppression du ticket
-        $entityManager->remove($ticket);
 
-        // Exécution SQL
+        $entityManager->remove($ticket);
         $entityManager->flush();
 
-        return $this->json([
-            'message' => 'Ticket deleted successfully',
-        ]);
+        return $apiResponse->success(
+            null,
+            'Ticket deleted successfully'
+        );
     }
 
     #[Route('/api/tickets/{id}/assign', name: 'api_ticket_assign', methods: ['PATCH'])]
-    public function assign(Ticket $ticket, Request $request, UserRepository $userRepository, EntityManagerInterface $entityManager, ProjectSecurityService $projectSecurityService): JsonResponse 
+    public function assign(Ticket $ticket, Request $request, UserRepository $userRepository, EntityManagerInterface $entityManager, 
+    ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse): JsonResponse 
     {
-        /** @var User|null $user */
+        /** @var User|null $currentUser */
         $currentUser = $this->getUser();
-    
+
         if (!$currentUser instanceof User) {
-            return $this->json([
-                'message' => 'User not authenticated',
-            ], 401);
+            return $apiResponse->error('User not authenticated', 401);
         }
 
-        if (!$projectSecurityService->hasProjectRole(
+        if (
+            !$projectSecurityService->hasProjectRole(
                 $ticket->getProject(),
                 $currentUser,
                 'project_manager'
             )
         ) {
-            return $this->json([
-                'message' => 'Only project managers can assign tickets',
-            ], 403);
+            return $apiResponse->error('Only project managers can assign tickets', 403);
         }
 
-        // Récupère le JSON envoyé
         $data = json_decode($request->getContent(), true);
 
-        // Vérifie que assignedTo est présent
         if (!isset($data['assignedTo'])) {
-            return $this->json([
-                'message' => 'assignedTo is required',
-            ], 400);
+            return $apiResponse->error('assignedTo is required', 400);
         }
 
-        // Recherche l'utilisateur à assigner
         $assignedUser = $userRepository->find($data['assignedTo']);
 
         if (!$assignedUser) {
-            return $this->json([
-                'message' => 'User not found',
-            ], 404);
+            return $apiResponse->error('User not found', 404);
         }
 
-        // Assigne le ticket à l'utilisateur trouvé
-        $ticket->setAssignedTo($user);
-        // Met à jour la date de modification
+        $ticket->setAssignedTo($assignedUser);
         $ticket->setUpdateAt(new \DateTimeImmutable());
 
-        // Sauvegarde
         $entityManager->flush();
 
-        return $this->json([
-            'message' => 'Ticket assigned successfully',
-            'ticket' => $this->formatTicket($ticket),
-        ]);
+        return $apiResponse->success(
+            $this->formatTicket($ticket),
+            'Ticket assigned successfully'
+        );
     }
 
     #[Route('/api/tickets/{id}/status', name: 'api_ticket_status', methods: ['PATCH'])]
-    public function updateStatus(Ticket $ticket, Request $request, EntityManagerInterface $entityManager, ProjectSecurityService $projectSecurityService): JsonResponse 
+    public function updateStatus(Ticket $ticket, Request $request, EntityManagerInterface $entityManager, 
+    ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse): JsonResponse 
     {
         /** @var User|null $user */
         $user = $this->getUser();
 
         if (!$user instanceof User) {
-            return $this->json([
-                'message' => 'User not authenticated',
-            ], 401);
+            return $apiResponse->error('User not authenticated', 401);
         }
 
-        // Seuls les membres du projet peuvent déplacer un ticket dans le Kanban
         if (!$projectSecurityService->isProjectMember($ticket->getProject(), $user)) {
-            return $this->json([
-                'message' => 'Access denied to this project',
-            ], 403);
+            return $apiResponse->error('Access denied to this project', 403);
         }
 
         $allowedStatuses = [
@@ -260,29 +229,24 @@ class TicketController extends AbstractController
         $data = json_decode($request->getContent(), true);
 
         if (!isset($data['status'])) {
-            return $this->json([
-                'message' => 'status is required',
-            ], 400);
+            return $apiResponse->error('status is required', 400);
         }
 
         if (!in_array($data['status'], $allowedStatuses, true)) {
-            return $this->json([
-                'message' => 'Invalid status',
+            return $apiResponse->error('Invalid status', 400, [
                 'allowedStatuses' => $allowedStatuses,
-            ], 400);
+            ]);
         }
 
         $ticket->setStatus($data['status']);
-
-        // Attention : garde le même nom que dans ton Entity
         $ticket->setUpdateAt(new \DateTimeImmutable());
 
         $entityManager->flush();
 
-        return $this->json([
-            'message' => 'Ticket status updated successfully',
-            'ticket' => $this->formatTicket($ticket),
-        ]);
+        return $apiResponse->success(
+            $this->formatTicket($ticket),
+            'Ticket status updated successfully'
+        );
     }
 
     private function formatTicket(Ticket $ticket): array
