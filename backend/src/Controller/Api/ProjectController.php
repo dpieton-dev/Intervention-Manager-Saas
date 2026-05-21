@@ -52,8 +52,28 @@ class ProjectController extends AbstractController
     }
 
     #[Route('/api/projects/{id}', name: 'api_project_show', methods: ['GET'])]
-    public function show(Project $project): JsonResponse
+    public function show(Project $project, ProjectSecurityService $projectSecurityService): JsonResponse
     {
+        /** @var User|null $currentUser */
+        $currentUser = $this->getUser();
+
+        if (!$currentUser instanceof User) {
+            return $this->json([
+                'message' => 'User not authenticated',
+            ], 401);
+        }
+
+        if (
+            !$projectSecurityService->isProjectMember(
+                $project,
+                $currentUser
+            )
+        ) {
+            return $this->json([
+                'message' => 'Access denied to this project',
+            ], 403);
+        }
+
         return $this->json($this->formatProject($project));
     }
 
@@ -86,8 +106,29 @@ class ProjectController extends AbstractController
     }
 
     #[Route('/api/projects/{id}', name: 'api_project_update', methods: ['PUT'])]
-    public function update(Project $project, Request $request, EntityManagerInterface $entityManager): JsonResponse 
+    public function update(Project $project, Request $request, EntityManagerInterface $entityManager, ProjectSecurityService $projectSecurityService): JsonResponse 
     {
+        /** @var User|null $currentUser */
+        $currentUser = $this->getUser();
+
+        if (!$currentUser instanceof User) {
+            return $this->json([
+                'message' => 'User not authenticated',
+            ], 401);
+        }
+
+        if (
+            !$projectSecurityService->hasProjectRole(
+                $project,
+                $currentUser,
+                'project_manager'
+            )
+        ) {
+            return $this->json([
+                'message' => 'Only project managers can update projects',
+            ], 403);
+        }
+
         $data = json_decode($request->getContent(), true);
 
         $project->setName($data['name'] ?? $project->getName());
@@ -121,8 +162,29 @@ class ProjectController extends AbstractController
     }
 
     #[Route('/api/projects/{id}', name: 'api_project_delete', methods: ['DELETE'])]
-    public function delete(Project $project, EntityManagerInterface $entityManager): JsonResponse 
+    public function delete(Project $project, EntityManagerInterface $entityManager, ProjectSecurityService $projectSecurityService): JsonResponse 
     {
+        /** @var User|null $currentUser */
+        $currentUser = $this->getUser();
+
+        if (!$currentUser instanceof User) {
+            return $this->json([
+                'message' => 'User not authenticated',
+            ], 401);
+        }
+
+        if (
+            !$projectSecurityService->hasProjectRole(
+                $project,
+                $currentUser,
+                'project_manager'
+            )
+        ) {
+            return $this->json([
+                'message' => 'Only project managers can delete projects',
+            ], 403);
+        }
+        
         $entityManager->remove($project);
         $entityManager->flush();
 
@@ -194,8 +256,29 @@ class ProjectController extends AbstractController
 
     #[Route('/api/projects/{id}/members', name: 'api_project_add_member', methods: ['POST'])]
     public function addMember(Project $project,
-    Request $request, UserRepository $userRepository, ProjectRoleRepository $projectRoleRepository, EntityManagerInterface $entityManager): JsonResponse
+    Request $request, UserRepository $userRepository, ProjectRoleRepository $projectRoleRepository, EntityManagerInterface $entityManager, ProjectSecurityService $projectSecurityService): JsonResponse
     {
+        /** @var User|null $currentUser */
+        $currentUser = $this->getUser();
+
+        if (!$currentUser instanceof User) {
+            return $this->json([
+                'message' => 'User not authenticated',
+            ], 401);
+        }
+
+        if (
+            !$projectSecurityService->hasProjectRole(
+                $project,
+                $currentUser,
+                'project_manager'
+            )
+        ) {
+            return $this->json([
+                'message' => 'Only project managers can add members',
+            ], 403);
+        }
+
         // Récupération des données JSON envoyées
         $data = json_decode($request->getContent(), true);
 
