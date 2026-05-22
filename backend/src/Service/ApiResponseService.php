@@ -33,6 +33,15 @@ class ApiResponseService
 
     public function validationError(iterable $errors): JsonResponse
     {
+        return $this->error(
+            'Validation failed',
+            422,
+            $this->formatValidationErrors($errors)
+        );
+    }
+
+    public function formatValidationErrors(iterable $errors): array
+    {
         $validationErrors = [];
 
         foreach ($errors as $error) {
@@ -42,10 +51,6 @@ class ApiResponseService
             ];
         }
 
-        return $this->error(
-            'Validation failed',
-            422,
-            $validationErrors
-        );
+        return $validationErrors;
     }
 }
