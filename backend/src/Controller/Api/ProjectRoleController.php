@@ -11,46 +11,45 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 use App\Service\ProjectSecurityService;
+use App\Service\ApiResponseService;
 
 class ProjectRoleController extends AbstractController
 {
     #[Route('/api/projects/{id}/roles', name: 'api_project_roles', methods: ['GET'])]
-    public function index(Project $project, ProjectSecurityService $projectSecurityService): JsonResponse
+    public function index(Project $project, ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse): JsonResponse
     {
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
 
         if (!$currentUser instanceof User) {
-            return $this->json([
-                'message' => 'User not authenticated',
-            ], 401);
+            return $apiResponse->error('User not authenticated', 401);
         }
 
         if (!$projectSecurityService->isProjectMember($project, $currentUser)) {
-            return $this->json([
-                'message' => 'Access denied to this project',
-            ], 403);
+            return $apiResponse->error('Access denied to this project', 403);
         }
-        
+
         $roles = [];
 
         foreach ($project->getRoles() as $role) {
             $roles[] = $this->formatRole($role);
         }
 
-        return $this->json($roles);
+        return $apiResponse->success(
+            $roles,
+            'Project roles retrieved successfully'
+        );
     }
 
     #[Route('/api/projects/{id}/roles', name: 'api_project_role_create', methods: ['POST'])]
-    public function create(Project $project, Request $request, EntityManagerInterface $entityManager, ProjectSecurityService $projectSecurityService): JsonResponse 
+    public function create(Project $project, Request $request, EntityManagerInterface $entityManager, 
+    ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse): JsonResponse 
     {
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
 
         if (!$currentUser instanceof User) {
-            return $this->json([
-                'message' => 'User not authenticated',
-            ], 401);
+            return $apiResponse->error('User not authenticated', 401);
         }
 
         if (
@@ -60,51 +59,47 @@ class ProjectRoleController extends AbstractController
                 'project_manager'
             )
         ) {
-            return $this->json([
-                'message' => 'Only project managers can create roles',
-            ], 403);
+            return $apiResponse->error(
+                'Only project managers can create roles',
+                403
+            );
         }
 
-        // Récupère les données JSON envoyées
         $data = json_decode($request->getContent(), true);
 
-        // Vérifie le nom du rôle
         if (empty($data['name'])) {
-            return $this->json(['message' => 'name is required'], 400);
+            return $apiResponse->error('name is required', 400);
         }
 
-        // Vérifie le code du rôle
         if (empty($data['code'])) {
-            return $this->json(['message' => 'code is required'], 400);
+            return $apiResponse->error('code is required', 400);
         }
 
-        // Création du rôle projet
         $role = new ProjectRole();
         $role->setProject($project);
         $role->setName($data['name']);
         $role->setCode($data['code']);
         $role->setDescription($data['description'] ?? null);
 
-        // Sauvegarde en base
         $entityManager->persist($role);
         $entityManager->flush();
 
-        return $this->json([
-            'message' => 'Project role created successfully',
-            'role' => $this->formatRole($role),
-        ], 201);
+        return $apiResponse->success(
+            $this->formatRole($role),
+            'Project role created successfully',
+            201
+        );
     }
 
     #[Route('/api/project-roles/{id}', name: 'api_project_role_update', methods: ['PUT'])]
-    public function update(ProjectRole $role, Request $request, EntityManagerInterface $entityManager, ProjectSecurityService $projectSecurityService): JsonResponse 
+    public function update(ProjectRole $role, Request $request, EntityManagerInterface $entityManager, 
+    ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse): JsonResponse 
     {
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
 
         if (!$currentUser instanceof User) {
-            return $this->json([
-                'message' => 'User not authenticated',
-            ], 401);
+            return $apiResponse->error('User not authenticated', 401);
         }
 
         if (
@@ -114,9 +109,10 @@ class ProjectRoleController extends AbstractController
                 'project_manager'
             )
         ) {
-            return $this->json([
-                'message' => 'Only project managers can manage roles',
-            ], 403);
+            return $apiResponse->error(
+                'Only project managers can manage roles',
+                403
+            );
         }
 
         $data = json_decode($request->getContent(), true);
@@ -127,22 +123,21 @@ class ProjectRoleController extends AbstractController
 
         $entityManager->flush();
 
-        return $this->json([
-            'message' => 'Project role updated successfully',
-            'role' => $this->formatRole($role),
-        ]);
+        return $apiResponse->success(
+            $this->formatRole($role),
+            'Project role updated successfully'
+        );
     }
 
     #[Route('/api/project-roles/{id}', name: 'api_project_role_delete', methods: ['DELETE'])]
-    public function delete(ProjectRole $role, EntityManagerInterface $entityManager, ProjectSecurityService $projectSecurityService): JsonResponse 
+    public function delete(ProjectRole $role, EntityManagerInterface $entityManager, 
+    ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse): JsonResponse 
     {
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
 
         if (!$currentUser instanceof User) {
-            return $this->json([
-                'message' => 'User not authenticated',
-            ], 401);
+            return $apiResponse->error('User not authenticated', 401);
         }
 
         if (
@@ -152,17 +147,19 @@ class ProjectRoleController extends AbstractController
                 'project_manager'
             )
         ) {
-            return $this->json([
-                'message' => 'Only project managers can manage roles',
-            ], 403);
+            return $apiResponse->error(
+                'Only project managers can manage roles',
+                403
+            );
         }
 
         $entityManager->remove($role);
         $entityManager->flush();
 
-        return $this->json([
-            'message' => 'Project role deleted successfully',
-        ]);
+        return $apiResponse->success(
+            null,
+            'Project role deleted successfully'
+        );
     }
 
     private function formatRole(ProjectRole $role): array

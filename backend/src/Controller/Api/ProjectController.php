@@ -14,24 +14,25 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 use App\Service\ProjectSecurityService;
+use App\Service\ApiResponseService;
 
 class ProjectController extends AbstractController
 {
     #[Route('/api/projects', name: 'api_projects', methods: ['GET'])]
-    public function index(): JsonResponse
+    public function index(ApiResponseService $apiResponse): JsonResponse 
     {
         /** @var User|null $user */
         $user = $this->getUser();
 
         if (!$user instanceof User) {
-            return $this->json([
-                'message' => 'User not authenticated',
-            ], 401);
+            return $apiResponse->error(
+                'User not authenticated',
+                401
+            );
         }
 
         $projects = [];
 
-        // Parcours des memberships du user connecté
         foreach ($user->getProjectMemberships() as $membership) {
 
             $project = $membership->getProject();
@@ -39,7 +40,6 @@ class ProjectController extends AbstractController
             $projects[] = [
                 ...$this->formatProject($project),
 
-                // Rôle du user dans le projet
                 'membershipRole' => [
                     'id' => $membership->getProjectRole()->getId(),
                     'name' => $membership->getProjectRole()->getName(),
@@ -48,19 +48,23 @@ class ProjectController extends AbstractController
             ];
         }
 
-        return $this->json($projects);
+        return $apiResponse->success(
+            $projects,
+            'Projects retrieved successfully'
+        );
     }
 
     #[Route('/api/projects/{id}', name: 'api_project_show', methods: ['GET'])]
-    public function show(Project $project, ProjectSecurityService $projectSecurityService): JsonResponse
+    public function show(Project $project, ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse): JsonResponse
     {
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
 
         if (!$currentUser instanceof User) {
-            return $this->json([
-                'message' => 'User not authenticated',
-            ], 401);
+            return $apiResponse->error(
+                'User not authenticated',
+                401
+            );
         }
 
         if (
@@ -69,16 +73,20 @@ class ProjectController extends AbstractController
                 $currentUser
             )
         ) {
-            return $this->json([
-                'message' => 'Access denied to this project',
-            ], 403);
+            return $apiResponse->error(
+                'Access denied to this project',
+                403
+            );
         }
 
-        return $this->json($this->formatProject($project));
+        return $apiResponse->success(
+            $this->formatProject($project),
+            'Project retrieved successfully'
+        );
     }
 
     #[Route('/api/projects', name: 'api_project_create', methods: ['POST'])]
-    public function create(Request $request, EntityManagerInterface $entityManager): JsonResponse 
+    public function create(Request $request, EntityManagerInterface $entityManager, ApiResponseService $apiResponse): JsonResponse 
     {
         $data = json_decode($request->getContent(), true);
 
@@ -99,22 +107,24 @@ class ProjectController extends AbstractController
         $entityManager->persist($project);
         $entityManager->flush();
 
-        return $this->json([
-            'message' => 'Project created successfully',
-            'project' => $this->formatProject($project),
-        ], 201);
+        return $apiResponse->success(
+            $this->formatProject($project),
+            'Project created successfully',
+            201
+        );
     }
 
     #[Route('/api/projects/{id}', name: 'api_project_update', methods: ['PUT'])]
-    public function update(Project $project, Request $request, EntityManagerInterface $entityManager, ProjectSecurityService $projectSecurityService): JsonResponse 
+    public function update(Project $project, Request $request, EntityManagerInterface $entityManager, ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse): JsonResponse 
     {
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
 
         if (!$currentUser instanceof User) {
-            return $this->json([
-                'message' => 'User not authenticated',
-            ], 401);
+            return $apiResponse->error(
+                'User not authenticated',
+                401
+            );
         }
 
         if (
@@ -124,53 +134,45 @@ class ProjectController extends AbstractController
                 'project_manager'
             )
         ) {
-            return $this->json([
-                'message' => 'Only project managers can update projects',
-            ], 403);
+            return $apiResponse->error(
+                'Only project managers can update projects',
+                403
+            );
         }
 
         $data = json_decode($request->getContent(), true);
 
         $project->setName($data['name'] ?? $project->getName());
+        $project->setDescription($data['description'] ?? $project->getDescription());
+        $project->setStatus($data['status'] ?? $project->getStatus());
 
-        $project->setDescription(
-            $data['description'] ?? $project->getDescription()
-        );
-
-        $project->setStatus(
-            $data['status'] ?? $project->getStatus()
-        );
-
-        if (isset($data['startDate'])) {
-            $project->setStartDate(
-                new \DateTimeImmutable($data['startDate'])
-            );
+        if (!empty($data['startDate'])) {
+            $project->setStartDate(new \DateTimeImmutable($data['startDate']));
         }
 
-        if (isset($data['endDate'])) {
-            $project->setEndDate(
-                new \DateTimeImmutable($data['endDate'])
-            );
+        if (!empty($data['endDate'])) {
+            $project->setEndDate(new \DateTimeImmutable($data['endDate']));
         }
 
         $entityManager->flush();
 
-        return $this->json([
-            'message' => 'Project updated successfully',
-            'project' => $this->formatProject($project),
-        ]);
+        return $apiResponse->success(
+            $this->formatProject($project),
+            'Project updated successfully'
+        );
     }
 
     #[Route('/api/projects/{id}', name: 'api_project_delete', methods: ['DELETE'])]
-    public function delete(Project $project, EntityManagerInterface $entityManager, ProjectSecurityService $projectSecurityService): JsonResponse 
+    public function delete(Project $project, EntityManagerInterface $entityManager, ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse): JsonResponse 
     {
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
 
         if (!$currentUser instanceof User) {
-            return $this->json([
-                'message' => 'User not authenticated',
-            ], 401);
+            return $apiResponse->error(
+                'User not authenticated',
+                401
+            );
         }
 
         if (
@@ -180,48 +182,55 @@ class ProjectController extends AbstractController
                 'project_manager'
             )
         ) {
-            return $this->json([
-                'message' => 'Only project managers can delete projects',
-            ], 403);
+            return $apiResponse->error(
+                'Only project managers can delete projects',
+                403
+            );
         }
-        
+
         $entityManager->remove($project);
         $entityManager->flush();
 
-        return $this->json([
-            'message' => 'Project deleted successfully',
-        ]);
+        return $apiResponse->success(
+            null,
+            'Project deleted successfully'
+        );
     }
 
     #[Route('/api/projects/{id}/board', name: 'api_project_board', methods: ['GET'])]
-    public function board(Project $project, ProjectSecurityService $projectSecurityService): JsonResponse
+    public function board(Project $project, ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse): JsonResponse
     {
         // Vérification si user est associé au projet
-        /** @var User|null $user */
-        $user = $this->getUser();
+        /** @var User|null $currentUser */
+        $currentUser = $this->getUser();
 
-        if (!$user instanceof User) {
-            return $this->json([
-                'message' => 'User not authenticated',
-            ], 401);
+        if (!$currentUser instanceof User) {
+            return $apiResponse->error(
+                'User not authenticated',
+                401
+            );
         }
 
-        // Vérifie que le user appartient au projet
-        if (!$projectSecurityService->isProjectMember($project, $user)) {
-            return $this->json([
-                'message' => 'Access denied to this project',
-            ], 403);
+        if (
+            !$projectSecurityService->isProjectMember(
+                $project,
+                $currentUser
+            )
+        ) {
+            return $apiResponse->error(
+                'Access denied to this project',
+                403
+            );
         }
 
-        // Structure Kanban
         $board = [
             'todo' => [],
             'in_progress' => [],
             'testing' => [],
+            'delivery_recette' => [],
             'done' => [],
         ];
 
-        // Parcours des tickets du projet
         foreach ($project->getTickets() as $ticket) {
 
             $ticketData = [
@@ -241,30 +250,31 @@ class ProjectController extends AbstractController
                 ] : null,
             ];
 
-            // Ajoute le ticket dans la bonne colonne
             $board[$ticket->getStatus()][] = $ticketData;
         }
 
-        return $this->json([
+        return $apiResponse->success([
             'project' => [
                 'id' => $project->getId(),
                 'name' => $project->getName(),
             ],
             'board' => $board,
-        ]);
+        ], 'Project board retrieved successfully');
     }
 
     #[Route('/api/projects/{id}/members', name: 'api_project_add_member', methods: ['POST'])]
     public function addMember(Project $project,
-    Request $request, UserRepository $userRepository, ProjectRoleRepository $projectRoleRepository, EntityManagerInterface $entityManager, ProjectSecurityService $projectSecurityService): JsonResponse
+    Request $request, UserRepository $userRepository, ProjectRoleRepository $projectRoleRepository, EntityManagerInterface $entityManager, 
+    ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse): JsonResponse
     {
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
 
         if (!$currentUser instanceof User) {
-            return $this->json([
-                'message' => 'User not authenticated',
-            ], 401);
+            return $apiResponse->error(
+                'User not authenticated',
+                401
+            );
         }
 
         if (
@@ -274,76 +284,73 @@ class ProjectController extends AbstractController
                 'project_manager'
             )
         ) {
-            return $this->json([
-                'message' => 'Only project managers can add members',
-            ], 403);
+            return $apiResponse->error(
+                'Only project managers can add members',
+                403
+            );
         }
 
-        // Récupération des données JSON envoyées
         $data = json_decode($request->getContent(), true);
 
-        // Vérifie que userId est présent
         if (!isset($data['userId'])) {
-            return $this->json([
-                'message' => 'userId is required',
-            ], 400);
+            return $apiResponse->error(
+                'userId is required',
+                400
+            );
         }
 
-        // Vérifie que role est présent
         if (!isset($data['projectRoleId'])) {
-            return $this->json([
-                'message' => 'projectRoleId is required',
-            ], 400);
+            return $apiResponse->error(
+                'projectRoleId is required',
+                400
+            );
         }
 
-
-        // Recherche de l’utilisateur à ajouter au projet
         $user = $userRepository->find($data['userId']);
 
         if (!$user) {
-            return $this->json([
-                'message' => 'User not found',
-            ], 404);
+            return $apiResponse->error(
+                'User not found',
+                404
+            );
         }
 
-        // Recherche du Rôle
         $projectRole = $projectRoleRepository->find($data['projectRoleId']);
 
         if (!$projectRole) {
-            return $this->json([
-                'message' => 'Project role not found',
-            ], 404);
+            return $apiResponse->error(
+                'Project role not found',
+                404
+            );
         }
 
-        // Création du lien User <-> Project
         $member = new ProjectMember();
         $member->setProject($project);
         $member->setUser($user);
         $member->setProjectRole($projectRole);
 
-        // Sauvegarde en base
         $entityManager->persist($member);
         $entityManager->flush();
 
-        return $this->json([
-            'message' => 'Member added successfully',
-            'member' => [
-                'id' => $member->getId(),
-                'projectRole' => [
-                    'id' => $projectRole->getId(),
-                    'name' => $projectRole->getName(),
-                    'code' => $projectRole->getCode(),
-                ],
-                'user' => [
-                    'id' => $user->getId(),
-                    'email' => $user->getEmail(),
-                ],
-                'project' => [
-                    'id' => $project->getId(),
-                    'name' => $project->getName(),
-                ],
+        return $apiResponse->success([
+            'id' => $member->getId(),
+
+            'projectRole' => [
+                'id' => $projectRole->getId(),
+                'name' => $projectRole->getName(),
+                'code' => $projectRole->getCode(),
             ],
-        ], 201);
+
+            'user' => [
+                'id' => $user->getId(),
+                'email' => $user->getEmail(),
+            ],
+
+            'project' => [
+                'id' => $project->getId(),
+                'name' => $project->getName(),
+            ],
+        ], 'Member added successfully', 201);
     }
 
     private function formatProject(Project $project): array
