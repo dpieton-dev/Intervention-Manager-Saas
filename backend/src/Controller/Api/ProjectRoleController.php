@@ -12,6 +12,9 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 use App\Service\ProjectSecurityService;
 use App\Service\ApiResponseService;
+use App\Dto\ProjectRole\CreateProjectRoleDto;
+use App\Dto\ProjectRole\UpdateProjectRoleDto;
+use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 class ProjectRoleController extends AbstractController
@@ -43,9 +46,15 @@ class ProjectRoleController extends AbstractController
     }
 
     #[Route('/api/projects/{id}/roles', name: 'api_project_role_create', methods: ['POST'])]
-    public function create(Project $project, Request $request, EntityManagerInterface $entityManager, 
-    ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse, ValidatorInterface $validator): JsonResponse 
-    {
+    public function create(
+        Project $project,
+        Request $request,
+        EntityManagerInterface $entityManager,
+        ProjectSecurityService $projectSecurityService,
+        ApiResponseService $apiResponse,
+        ValidatorInterface $validator,
+        SerializerInterface $serializer
+    ): JsonResponse {
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
 
@@ -53,40 +62,27 @@ class ProjectRoleController extends AbstractController
             return $apiResponse->error('User not authenticated', 401);
         }
 
-        if (
-            !$projectSecurityService->hasProjectRole(
-                $project,
-                $currentUser,
-                'project_manager'
-            )
-        ) {
-            return $apiResponse->error(
-                'Only project managers can create roles',
-                403
-            );
+        if (!$projectSecurityService->hasProjectRole($project, $currentUser, 'project_manager')) {
+            return $apiResponse->error('Only project managers can create roles', 403);
         }
 
-        $data = json_decode($request->getContent(), true);
+        $dto = $serializer->deserialize(
+            $request->getContent(),
+            CreateProjectRoleDto::class,
+            'json'
+        );
 
-        if (empty($data['name'])) {
-            return $apiResponse->error('name is required', 400);
-        }
-
-        if (empty($data['code'])) {
-            return $apiResponse->error('code is required', 400);
-        }
-
-        $role = new ProjectRole();
-        $role->setProject($project);
-        $role->setName($data['name']);
-        $role->setCode($data['code']);
-        $role->setDescription($data['description'] ?? null);
-
-        $errors = $validator->validate($role);
+        $errors = $validator->validate($dto);
 
         if (count($errors) > 0) {
             return $apiResponse->validationError($errors);
         }
+
+        $role = new ProjectRole();
+        $role->setProject($project);
+        $role->setName($dto->name);
+        $role->setCode($dto->code);
+        $role->setDescription($dto->description);
 
         $entityManager->persist($role);
         $entityManager->flush();
@@ -99,9 +95,15 @@ class ProjectRoleController extends AbstractController
     }
 
     #[Route('/api/project-roles/{id}', name: 'api_project_role_update', methods: ['PUT'])]
-    public function update(ProjectRole $role, Request $request, EntityManagerInterface $entityManager, 
-    ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse, ValidatorInterface $validator): JsonResponse 
-    {
+    public function update(
+        ProjectRole $role,
+        Request $request,
+        EntityManagerInterface $entityManager,
+        ProjectSecurityService $projectSecurityService,
+        ApiResponseService $apiResponse,
+        ValidatorInterface $validator,
+        SerializerInterface $serializer
+    ): JsonResponse {
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
 
@@ -109,31 +111,34 @@ class ProjectRoleController extends AbstractController
             return $apiResponse->error('User not authenticated', 401);
         }
 
-        if (
-            !$projectSecurityService->hasProjectRole(
-                $role->getProject(),
-                $currentUser,
-                'project_manager'
-            )
-        ) {
-            return $apiResponse->error(
-                'Only project managers can manage roles',
-                403
-            );
+        if (!$projectSecurityService->hasProjectRole($role->getProject(), $currentUser, 'project_manager')) {
+            return $apiResponse->error('Only project managers can manage roles', 403);
         }
 
-        $data = json_decode($request->getContent(), true);
+        $dto = $serializer->deserialize(
+            $request->getContent(),
+            UpdateProjectRoleDto::class,
+            'json'
+        );
 
-        $role->setName($data['name'] ?? $role->getName());
-        $role->setCode($data['code'] ?? $role->getCode());
-        $role->setDescription($data['description'] ?? $role->getDescription());
-
-        $errors = $validator->validate($role);
+        $errors = $validator->validate($dto);
 
         if (count($errors) > 0) {
             return $apiResponse->validationError($errors);
         }
-        
+
+        if ($dto->name !== null) {
+            $role->setName($dto->name);
+        }
+
+        if ($dto->code !== null) {
+            $role->setCode($dto->code);
+        }
+
+        if ($dto->description !== null) {
+            $role->setDescription($dto->description);
+        }
+
         $entityManager->flush();
 
         return $apiResponse->success(

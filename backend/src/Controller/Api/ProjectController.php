@@ -13,6 +13,9 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
+use App\Dto\Project\CreateProjectDto;
+use App\Dto\Project\UpdateProjectDto;
+use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 use App\Service\ProjectSecurityService;
 use App\Service\ApiResponseService;
@@ -87,29 +90,51 @@ class ProjectController extends AbstractController
     }
 
     #[Route('/api/projects', name: 'api_project_create', methods: ['POST'])]
-    public function create(Request $request, EntityManagerInterface $entityManager, 
-    ApiResponseService $apiResponse, ValidatorInterface $validator): JsonResponse 
-    {
-        $data = json_decode($request->getContent(), true);
-
-        $project = new Project();
-
-        $project->setName($data['name'] ?? '');
-        $project->setDescription($data['description'] ?? '');
-        $project->setStatus($data['status'] ?? 'active');
-
-        $project->setStartDate(
-            new \DateTimeImmutable($data['startDate'])
+    public function create(
+        Request $request,
+        EntityManagerInterface $entityManager,
+        ApiResponseService $apiResponse,
+        ValidatorInterface $validator,
+        SerializerInterface $serializer
+    ): JsonResponse {
+        // Désérialisation JSON -> DTO
+        $dto = $serializer->deserialize(
+            $request->getContent(),
+            CreateProjectDto::class,
+            'json'
         );
 
-        $project->setEndDate(
-            new \DateTimeImmutable($data['endDate'])
-        );
-
-        $errors = $validator->validate($project);
+        // Validation DTO
+        $errors = $validator->validate($dto);
 
         if (count($errors) > 0) {
             return $apiResponse->validationError($errors);
+        }
+
+        // Création projet
+        $project = new Project();
+
+        $project->setName($dto->name);
+        $project->setDescription($dto->description);
+        $project->setStatus($dto->status);
+
+        if ($dto->startDate) {
+            $project->setStartDate(
+                new \DateTimeImmutable($dto->startDate)
+            );
+        }
+
+        if ($dto->endDate) {
+            $project->setEndDate(
+                new \DateTimeImmutable($dto->endDate)
+            );
+        }
+
+        // Validation Entity
+        $projectErrors = $validator->validate($project);
+
+        if (count($projectErrors) > 0) {
+            return $apiResponse->validationError($projectErrors);
         }
 
         $entityManager->persist($project);
@@ -123,9 +148,15 @@ class ProjectController extends AbstractController
     }
 
     #[Route('/api/projects/{id}', name: 'api_project_update', methods: ['PUT'])]
-    public function update(Project $project, Request $request, EntityManagerInterface $entityManager, 
-    ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse, ValidatorInterface $validator): JsonResponse 
-    {
+    public function update(
+        Project $project,
+        Request $request,
+        EntityManagerInterface $entityManager,
+        ProjectSecurityService $projectSecurityService,
+        ApiResponseService $apiResponse,
+        ValidatorInterface $validator,
+        SerializerInterface $serializer
+    ): JsonResponse {
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
 
@@ -136,6 +167,7 @@ class ProjectController extends AbstractController
             );
         }
 
+        // Vérifie rôle project_manager
         if (
             !$projectSecurityService->hasProjectRole(
                 $project,
@@ -149,26 +181,52 @@ class ProjectController extends AbstractController
             );
         }
 
-        $data = json_decode($request->getContent(), true);
+        // Désérialisation JSON -> DTO
+        $dto = $serializer->deserialize(
+            $request->getContent(),
+            UpdateProjectDto::class,
+            'json'
+        );
 
-        $project->setName($data['name'] ?? $project->getName());
-        $project->setDescription($data['description'] ?? $project->getDescription());
-        $project->setStatus($data['status'] ?? $project->getStatus());
-
-        if (!empty($data['startDate'])) {
-            $project->setStartDate(new \DateTimeImmutable($data['startDate']));
-        }
-
-        if (!empty($data['endDate'])) {
-            $project->setEndDate(new \DateTimeImmutable($data['endDate']));
-        }
-
-        $errors = $validator->validate($project);
+        // Validation DTO
+        $errors = $validator->validate($dto);
 
         if (count($errors) > 0) {
             return $apiResponse->validationError($errors);
         }
-        
+
+        // Mise à jour champs
+        if ($dto->name !== null) {
+            $project->setName($dto->name);
+        }
+
+        if ($dto->description !== null) {
+            $project->setDescription($dto->description);
+        }
+
+        if ($dto->status !== null) {
+            $project->setStatus($dto->status);
+        }
+
+        if ($dto->startDate !== null) {
+            $project->setStartDate(
+                new \DateTimeImmutable($dto->startDate)
+            );
+        }
+
+        if ($dto->endDate !== null) {
+            $project->setEndDate(
+                new \DateTimeImmutable($dto->endDate)
+            );
+        }
+
+        // Validation Entity
+        $projectErrors = $validator->validate($project);
+
+        if (count($projectErrors) > 0) {
+            return $apiResponse->validationError($projectErrors);
+        }
+
         $entityManager->flush();
 
         return $apiResponse->success(
