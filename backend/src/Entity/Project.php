@@ -8,6 +8,7 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use DateTimeImmutable;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: ProjectRepository::class)]
 class Project
@@ -17,15 +18,32 @@ class Project
     #[ORM\Column]
     private ?int $id = null;
 
+    #[Assert\NotBlank(message: 'Project name is required')]
+    #[Assert\Length(
+        min: 3,
+        max: 255,
+        minMessage: 'Project name must be at least {{ limit }} characters long',
+        maxMessage: 'Project name cannot be longer than {{ limit }} characters'
+    )]
     #[ORM\Column(length: 255)]
     private ?string $name = null;
 
+    #[Assert\Length(
+        min: 10,
+        minMessage: 'Description must be at least {{ limit }} characters long'
+    )]
     #[ORM\Column(type: Types::TEXT)]
     private ?string $description = null;
 
+    #[Assert\NotBlank(message: 'Status is required')]
+    #[Assert\Choice(
+        choices: ['active', 'on_hold', 'completed', 'archived'],
+        message: 'Invalid project status'
+    )]
     #[ORM\Column(length: 50)]
     private ?string $status = null;
 
+    #[Assert\NotNull(message: 'Start date is required')]
     #[ORM\Column(type: Types::DATE_IMMUTABLE, nullable: true)]
     private ?\DateTimeImmutable $startDate = null;
 
@@ -229,4 +247,22 @@ class Project
 
         return $this;
     }
+
+    #[Assert\Callback]
+    public function validateDates(
+        \Symfony\Component\Validator\Context\ExecutionContextInterface $context
+    ): void {
+        if (
+            $this->startDate
+            && $this->endDate
+            && $this->endDate < $this->startDate
+        ) {
+            $context->buildViolation(
+                'End date must be after start date'
+            )
+            ->atPath('endDate')
+            ->addViolation();
+        }
+    }
 }
+

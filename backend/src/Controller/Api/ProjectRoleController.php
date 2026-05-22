@@ -12,6 +12,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 use App\Service\ProjectSecurityService;
 use App\Service\ApiResponseService;
+use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 class ProjectRoleController extends AbstractController
 {
@@ -43,7 +44,7 @@ class ProjectRoleController extends AbstractController
 
     #[Route('/api/projects/{id}/roles', name: 'api_project_role_create', methods: ['POST'])]
     public function create(Project $project, Request $request, EntityManagerInterface $entityManager, 
-    ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse): JsonResponse 
+    ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse, ValidatorInterface $validator): JsonResponse 
     {
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
@@ -81,6 +82,25 @@ class ProjectRoleController extends AbstractController
         $role->setCode($data['code']);
         $role->setDescription($data['description'] ?? null);
 
+        $errors = $validator->validate($role);
+
+        if (count($errors) > 0) {
+            $validationErrors = [];
+
+            foreach ($errors as $error) {
+                $validationErrors[] = [
+                    'field' => $error->getPropertyPath(),
+                    'message' => $error->getMessage(),
+                ];
+            }
+
+            return $apiResponse->error(
+                'Validation failed',
+                422,
+                $validationErrors
+            );
+        }
+
         $entityManager->persist($role);
         $entityManager->flush();
 
@@ -93,7 +113,7 @@ class ProjectRoleController extends AbstractController
 
     #[Route('/api/project-roles/{id}', name: 'api_project_role_update', methods: ['PUT'])]
     public function update(ProjectRole $role, Request $request, EntityManagerInterface $entityManager, 
-    ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse): JsonResponse 
+    ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse, ValidatorInterface $validator): JsonResponse 
     {
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
@@ -121,6 +141,25 @@ class ProjectRoleController extends AbstractController
         $role->setCode($data['code'] ?? $role->getCode());
         $role->setDescription($data['description'] ?? $role->getDescription());
 
+        $errors = $validator->validate($role);
+
+        if (count($errors) > 0) {
+            $validationErrors = [];
+
+            foreach ($errors as $error) {
+                $validationErrors[] = [
+                    'field' => $error->getPropertyPath(),
+                    'message' => $error->getMessage(),
+                ];
+            }
+
+            return $apiResponse->error(
+                'Validation failed',
+                422,
+                $validationErrors
+            );
+        }
+        
         $entityManager->flush();
 
         return $apiResponse->success(

@@ -5,6 +5,7 @@ namespace App\Entity;
 use App\Repository\TicketRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Validator\Constraints as Assert;
 use DateTimeImmutable;
 
 #[ORM\Entity(repositoryClass: TicketRepository::class)]
@@ -15,18 +16,41 @@ class Ticket
     #[ORM\Column]
     private ?int $id = null;
 
+    #[Assert\NotBlank(message: 'Title is required')]
+    #[Assert\Length(
+        min: 3,
+        max: 255,
+        minMessage: 'Title must be at least {{ limit }} characters long',
+        maxMessage: 'Title cannot be longer than {{ limit }} characters'
+    )]
     #[ORM\Column(length: 255)]
     private ?string $title = null;
 
+    #[Assert\NotBlank(message: 'Description is required')]
+    #[Assert\Length(
+        min: 10,
+        minMessage: 'Description must be at least {{ limit }} characters long'
+    )]
     #[ORM\Column(type: Types::TEXT)]
     private ?string $description = null;
 
+    #[Assert\NotBlank(message: 'Status is required')]
+    #[Assert\Choice(
+        choices: ['todo', 'in_progress', 'testing', 'delivery_recette', 'done'],
+        message: 'Invalid status'
+    )]
     #[ORM\Column(length: 50)]
     private ?string $status = null;
 
+    #[Assert\NotBlank(message: 'Priority is required')]
+    #[Assert\Choice(
+        choices: ['low', 'medium', 'high', 'urgent'],
+        message: 'Invalid priority'
+    )]
     #[ORM\Column(length: 50)]
     private ?string $priority = null;
 
+    
     #[ORM\Column]
     private ?\DateTimeImmutable $createdAt = null;
 

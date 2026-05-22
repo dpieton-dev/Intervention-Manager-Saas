@@ -10,6 +10,7 @@ use App\Entity\Ticket;
 use App\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\Validator\Validator\ValidatorInterface;
 use App\Repository\UserRepository;
 use App\Repository\ProjectRepository;
 use App\Service\ProjectSecurityService;
@@ -33,7 +34,8 @@ class TicketController extends AbstractController
 
     #[Route('/api/tickets', name: 'api_ticket_create', methods: ['POST'])]
     public function create(Request $request, EntityManagerInterface $entityManager, 
-    ProjectRepository $projectRepository, ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse): JsonResponse 
+    ProjectRepository $projectRepository, ProjectSecurityService $projectSecurityService, 
+    ApiResponseService $apiResponse, ValidatorInterface $validator): JsonResponse 
     {
         // Récupération de l'utilisateur via le token JWT
         /** @var User|null $user */
@@ -77,6 +79,25 @@ class TicketController extends AbstractController
         // AssignedTo reste null par défaut
         $ticket->setProject($project);
 
+        $errors = $validator->validate($ticket);
+
+        if (count($errors) > 0) {
+            $validationErrors = [];
+
+            foreach ($errors as $error) {
+                $validationErrors[] = [
+                    'field' => $error->getPropertyPath(),
+                    'message' => $error->getMessage(),
+                ];
+            }
+
+            return $apiResponse->error(
+                'Validation failed',
+                422,
+                $validationErrors
+            );
+        }
+
         // Sauvegarde en BDD
         $entityManager->persist($ticket);
         $entityManager->flush();
@@ -100,7 +121,7 @@ class TicketController extends AbstractController
 
     #[Route('/api/tickets/{id}', name: 'api_ticket_update', methods: ['PUT'])]
     public function update(Ticket $ticket, Request $request, EntityManagerInterface $entityManager, 
-    ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse): JsonResponse 
+    ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse, ValidatorInterface $validator): JsonResponse 
     {
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
@@ -120,8 +141,25 @@ class TicketController extends AbstractController
         $ticket->setStatus($data['status'] ?? $ticket->getStatus());
         $ticket->setPriority($data['priority'] ?? $ticket->getPriority());
         $ticket->setUpdateAt(new \DateTimeImmutable());
+        $errors = $validator->validate($ticket);
 
-        $entityManager->flush();
+        if (count($errors) > 0) {
+            $validationErrors = [];
+
+            foreach ($errors as $error) {
+                $validationErrors[] = [
+                    'field' => $error->getPropertyPath(),
+                    'message' => $error->getMessage(),
+                ];
+            }
+
+            return $apiResponse->error(
+                'Validation failed',
+                422,
+                $validationErrors
+            );
+        }
+                $entityManager->flush();
 
         return $apiResponse->success(
             $this->formatTicket($ticket),

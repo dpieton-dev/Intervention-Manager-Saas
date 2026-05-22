@@ -7,6 +7,7 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Validator\Constraints as Assert;
 use DateTimeImmutable;
 
 #[ORM\Entity(repositoryClass: ProjectRoleRepository::class)]
@@ -17,15 +18,38 @@ class ProjectRole
     #[ORM\Column]
     private ?int $id = null;
 
+    #[Assert\NotBlank(message: 'Role name is required')]
+    #[Assert\Length(
+        min: 3,
+        max: 255,
+        minMessage: 'Role name must be at least {{ limit }} characters long',
+        maxMessage: 'Role name cannot be longer than {{ limit }} characters'
+    )]
     #[ORM\Column(length: 255)]
     private ?string $name = null;
 
+    #[Assert\NotBlank(message: 'Role code is required')]
+    #[Assert\Length(
+        min: 3,
+        max: 100,
+        minMessage: 'Role code must be at least {{ limit }} characters long',
+        maxMessage: 'Role code cannot be longer than {{ limit }} characters'
+    )]
+    #[Assert\Regex(
+        pattern: '/^[a-z0-9_]+$/',
+        message: 'Role code must contain only lowercase letters, numbers and underscores'
+    )]
     #[ORM\Column(length: 100)]
     private ?string $code = null;
 
+    #[Assert\Length(
+        max: 1000,
+        maxMessage: 'Description cannot be longer than {{ limit }} characters'
+    )]
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $description = null;
 
+    
     #[ORM\Column]
     private ?\DateTimeImmutable $createdAt = null;
 
