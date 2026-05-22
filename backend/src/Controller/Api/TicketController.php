@@ -82,20 +82,7 @@ class TicketController extends AbstractController
         $errors = $validator->validate($ticket);
 
         if (count($errors) > 0) {
-            $validationErrors = [];
-
-            foreach ($errors as $error) {
-                $validationErrors[] = [
-                    'field' => $error->getPropertyPath(),
-                    'message' => $error->getMessage(),
-                ];
-            }
-
-            return $apiResponse->error(
-                'Validation failed',
-                422,
-                $validationErrors
-            );
+            return $apiResponse->validationError($errors);
         }
 
         // Sauvegarde en BDD
@@ -144,20 +131,7 @@ class TicketController extends AbstractController
         $errors = $validator->validate($ticket);
 
         if (count($errors) > 0) {
-            $validationErrors = [];
-
-            foreach ($errors as $error) {
-                $validationErrors[] = [
-                    'field' => $error->getPropertyPath(),
-                    'message' => $error->getMessage(),
-                ];
-            }
-
-            return $apiResponse->error(
-                'Validation failed',
-                422,
-                $validationErrors
-            );
+            return $apiResponse->validationError($errors);
         }
                 $entityManager->flush();
 

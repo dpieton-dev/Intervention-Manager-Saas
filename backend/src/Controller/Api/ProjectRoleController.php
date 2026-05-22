@@ -85,20 +85,7 @@ class ProjectRoleController extends AbstractController
         $errors = $validator->validate($role);
 
         if (count($errors) > 0) {
-            $validationErrors = [];
-
-            foreach ($errors as $error) {
-                $validationErrors[] = [
-                    'field' => $error->getPropertyPath(),
-                    'message' => $error->getMessage(),
-                ];
-            }
-
-            return $apiResponse->error(
-                'Validation failed',
-                422,
-                $validationErrors
-            );
+            return $apiResponse->validationError($errors);
         }
 
         $entityManager->persist($role);
@@ -144,20 +131,7 @@ class ProjectRoleController extends AbstractController
         $errors = $validator->validate($role);
 
         if (count($errors) > 0) {
-            $validationErrors = [];
-
-            foreach ($errors as $error) {
-                $validationErrors[] = [
-                    'field' => $error->getPropertyPath(),
-                    'message' => $error->getMessage(),
-                ];
-            }
-
-            return $apiResponse->error(
-                'Validation failed',
-                422,
-                $validationErrors
-            );
+            return $apiResponse->validationError($errors);
         }
         
         $entityManager->flush();

@@ -109,21 +109,7 @@ class ProjectController extends AbstractController
         $errors = $validator->validate($project);
 
         if (count($errors) > 0) {
-
-            $validationErrors = [];
-
-            foreach ($errors as $error) {
-                $validationErrors[] = [
-                    'field' => $error->getPropertyPath(),
-                    'message' => $error->getMessage(),
-                ];
-            }
-
-            return $apiResponse->error(
-                'Validation failed',
-                422,
-                $validationErrors
-            );
+            return $apiResponse->validationError($errors);
         }
 
         $entityManager->persist($project);
@@ -180,21 +166,7 @@ class ProjectController extends AbstractController
         $errors = $validator->validate($project);
 
         if (count($errors) > 0) {
-
-            $validationErrors = [];
-
-            foreach ($errors as $error) {
-                $validationErrors[] = [
-                    'field' => $error->getPropertyPath(),
-                    'message' => $error->getMessage(),
-                ];
-            }
-
-            return $apiResponse->error(
-                'Validation failed',
-                422,
-                $validationErrors
-            );
+            return $apiResponse->validationError($errors);
         }
         
         $entityManager->flush();

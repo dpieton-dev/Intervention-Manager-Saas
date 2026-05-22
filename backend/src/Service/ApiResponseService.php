@@ -30,4 +30,22 @@ class ApiResponseService
             'errors' => $errors,
         ], $statusCode);
     }
+
+    public function validationError(iterable $errors): JsonResponse
+    {
+        $validationErrors = [];
+
+        foreach ($errors as $error) {
+            $validationErrors[] = [
+                'field' => $error->getPropertyPath(),
+                'message' => $error->getMessage(),
+            ];
+        }
+
+        return $this->error(
+            'Validation failed',
+            422,
+            $validationErrors
+        );
+    }
 }
