@@ -12,6 +12,7 @@ use App\Exception\NotFoundException;
 use App\Exception\UnauthorizedException;
 use App\Exception\ValidationException;
 use App\Repository\ProjectRoleRepository;
+use App\Repository\ProjectRepository;
 use App\Repository\UserRepository;
 use App\Service\ApiResponseService;
 use App\Service\ProjectSecurityService;
@@ -27,6 +28,8 @@ class ProjectController extends AbstractController
 {
     #[Route('/api/projects', name: 'api_projects', methods: ['GET'])]
     public function index(
+        Request $request,
+        ProjectRepository $projectRepository,
         ApiResponseService $apiResponse
     ): JsonResponse {
         /** @var User|null $user */
@@ -36,27 +39,88 @@ class ProjectController extends AbstractController
             throw new UnauthorizedException();
         }
 
+        /*
+        |--------------------------------------------------------------------------
+        | PAGINATION
+        |--------------------------------------------------------------------------
+        */
+
+        $page = max(
+            1,
+            (int) $request->query->get('page', 1)
+        );
+
+        $limit = max(
+            1,
+            (int) $request->query->get('limit', 10)
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | FILTERS
+        |--------------------------------------------------------------------------
+        */
+
+        $filters = [
+            'status' => $request->query->get('status'),
+            'search' => $request->query->get('search'),
+        ];
+
+        /*
+        |--------------------------------------------------------------------------
+        | REPOSITORY
+        |--------------------------------------------------------------------------
+        */
+
+        $result = $projectRepository->findFilteredProjectsForUser(
+            $user,
+            $filters,
+            $page,
+            $limit
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | FORMAT PROJECTS
+        |--------------------------------------------------------------------------
+        */
+
         $projects = [];
 
-        foreach ($user->getProjectMemberships() as $membership) {
+        foreach ($result['data'] as $project) {
 
-            $project = $membership->getProject();
+            $membership = null;
+
+            foreach ($user->getProjectMemberships() as $projectMembership) {
+
+                if ($projectMembership->getProject()->getId() === $project->getId()) {
+                    $membership = $projectMembership;
+                    break;
+                }
+            }
 
             $projects[] = [
                 ...$this->formatProject($project),
 
-                'membershipRole' => [
+                'membershipRole' => $membership ? [
                     'id' => $membership->getProjectRole()->getId(),
                     'name' => $membership->getProjectRole()->getName(),
                     'code' => $membership->getProjectRole()->getCode(),
-                ],
+                ] : null,
             ];
         }
 
-        return $apiResponse->success(
-            $projects,
-            'Projects retrieved successfully'
-        );
+        /*
+        |--------------------------------------------------------------------------
+        | RESPONSE
+        |--------------------------------------------------------------------------
+        */
+
+        return $apiResponse->success([
+            'projects' => $projects,
+            'pagination' => $result['pagination'],
+            'filters' => $filters,
+        ], 'Projects retrieved successfully');
     }
 
     #[Route('/api/projects/{id}', name: 'api_project_show', methods: ['GET'])]

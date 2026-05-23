@@ -27,18 +27,77 @@ class TicketController extends AbstractController
 {
     #[Route('/api/tickets', name: 'api_tickets', methods: ['GET'])]
     public function index(
+        Request $request,
         TicketRepository $ticketRepository,
         ApiResponseService $apiResponse
     ): JsonResponse {
-        $tickets = $ticketRepository->findAll();
 
-        $data = [];
+        /*
+        |--------------------------------------------------------------------------
+        | PAGINATION
+        |--------------------------------------------------------------------------
+        */
 
-        foreach ($tickets as $ticket) {
-            $data[] = $this->formatTicket($ticket);
+        $page = max(
+            1,
+            (int) $request->query->get('page', 1)
+        );
+
+        $limit = max(
+            1,
+            (int) $request->query->get('limit', 10)
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | FILTERS
+        |--------------------------------------------------------------------------
+        */
+
+        $filters = [
+            'status' => $request->query->get('status'),
+            'priority' => $request->query->get('priority'),
+            'project' => $request->query->get('project'),
+            'assignedTo' => $request->query->get('assignedTo'),
+            'createdBy' => $request->query->get('createdBy'),
+            'search' => $request->query->get('search'),
+        ];
+
+        /*
+        |--------------------------------------------------------------------------
+        | REPOSITORY
+        |--------------------------------------------------------------------------
+        */
+
+        $result = $ticketRepository->findFilteredTickets(
+            $filters,
+            $page,
+            $limit
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | FORMAT TICKETS
+        |--------------------------------------------------------------------------
+        */
+
+        $tickets = [];
+
+        foreach ($result['data'] as $ticket) {
+            $tickets[] = $this->formatTicket($ticket);
         }
 
-        return $apiResponse->success($data, 'Tickets retrieved successfully');
+        /*
+        |--------------------------------------------------------------------------
+        | RESPONSE
+        |--------------------------------------------------------------------------
+        */
+
+        return $apiResponse->success([
+            'tickets' => $tickets,
+            'pagination' => $result['pagination'],
+            'filters' => $filters,
+        ], 'Tickets retrieved successfully');
     }
 
     #[Route('/api/tickets/{id}', name: 'api_ticket_show', methods: ['GET'])]

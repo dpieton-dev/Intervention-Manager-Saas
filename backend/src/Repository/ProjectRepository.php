@@ -3,41 +3,58 @@
 namespace App\Repository;
 
 use App\Entity\Project;
+use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
-/**
- * @extends ServiceEntityRepository<Project>
- */
 class ProjectRepository extends ServiceEntityRepository
 {
-    public function __construct(ManagerRegistry $registry)
-    {
+    public function __construct(
+        ManagerRegistry $registry
+    ) {
         parent::__construct($registry, Project::class);
     }
 
-    //    /**
-    //     * @return Project[] Returns an array of Project objects
-    //     */
-    //    public function findByExampleField($value): array
-    //    {
-    //        return $this->createQueryBuilder('p')
-    //            ->andWhere('p.exampleField = :val')
-    //            ->setParameter('val', $value)
-    //            ->orderBy('p.id', 'ASC')
-    //            ->setMaxResults(10)
-    //            ->getQuery()
-    //            ->getResult()
-    //        ;
-    //    }
+    public function findFilteredProjectsForUser(
+        User $user,
+        array $filters,
+        int $page = 1,
+        int $limit = 10
+    ): array {
+        $queryBuilder = $this->createQueryBuilder('p')
+            ->join('p.members', 'm')
+            ->join('m.user', 'u')
+            ->andWhere('u.id = :userId')
+            ->setParameter('userId', $user->getId());
 
-    //    public function findOneBySomeField($value): ?Project
-    //    {
-    //        return $this->createQueryBuilder('p')
-    //            ->andWhere('p.exampleField = :val')
-    //            ->setParameter('val', $value)
-    //            ->getQuery()
-    //            ->getOneOrNullResult()
-    //        ;
-    //    }
+        if (!empty($filters['status'])) {
+            $queryBuilder
+                ->andWhere('p.status = :status')
+                ->setParameter('status', $filters['status']);
+        }
+
+        if (!empty($filters['search'])) {
+            $queryBuilder
+                ->andWhere('p.name LIKE :search OR p.description LIKE :search')
+                ->setParameter('search', '%' . $filters['search'] . '%');
+        }
+
+        $total = count($queryBuilder->getQuery()->getResult());
+
+        $projects = $queryBuilder
+            ->orderBy('p.createdAt', 'DESC')
+            ->setFirstResult(($page - 1) * $limit)
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+
+        return [
+            'data' => $projects,
+            'pagination' => [
+                'page' => $page,
+                'limit' => $limit,
+                'total' => $total,
+            ],
+        ];
+    }
 }
