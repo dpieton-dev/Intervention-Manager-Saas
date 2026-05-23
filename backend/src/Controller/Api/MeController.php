@@ -3,6 +3,7 @@
 namespace App\Controller\Api;
 
 use App\Entity\User;
+use App\Exception\UnauthorizedException;
 use App\Service\ApiResponseService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -11,16 +12,14 @@ use Symfony\Component\Routing\Attribute\Route;
 class MeController extends AbstractController
 {
     #[Route('/api/me', name: 'api_me', methods: ['GET'])]
-    public function __invoke(ApiResponseService $apiResponse): JsonResponse
-    {
+    public function me(
+        ApiResponseService $apiResponse
+    ): JsonResponse {
         /** @var User|null $user */
         $user = $this->getUser();
 
         if (!$user instanceof User) {
-            return $apiResponse->error(
-                'User not authenticated',
-                401
-            );
+            throw new UnauthorizedException();
         }
 
         return $apiResponse->success([

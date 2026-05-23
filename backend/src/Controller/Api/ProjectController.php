@@ -2,37 +2,38 @@
 
 namespace App\Controller\Api;
 
+use App\Dto\Project\CreateProjectDto;
+use App\Dto\Project\UpdateProjectDto;
 use App\Entity\Project;
 use App\Entity\ProjectMember;
 use App\Entity\User;
-use App\Repository\ProjectRepository;
+use App\Exception\ForbiddenException;
+use App\Exception\NotFoundException;
+use App\Exception\UnauthorizedException;
+use App\Exception\ValidationException;
 use App\Repository\ProjectRoleRepository;
 use App\Repository\UserRepository;
+use App\Service\ApiResponseService;
+use App\Service\ProjectSecurityService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
-use App\Dto\Project\CreateProjectDto;
-use App\Dto\Project\UpdateProjectDto;
 use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
-use App\Service\ProjectSecurityService;
-use App\Service\ApiResponseService;
 
 class ProjectController extends AbstractController
 {
     #[Route('/api/projects', name: 'api_projects', methods: ['GET'])]
-    public function index(ApiResponseService $apiResponse): JsonResponse 
-    {
+    public function index(
+        ApiResponseService $apiResponse
+    ): JsonResponse {
         /** @var User|null $user */
         $user = $this->getUser();
 
         if (!$user instanceof User) {
-            return $apiResponse->error(
-                'User not authenticated',
-                401
-            );
+            throw new UnauthorizedException();
         }
 
         $projects = [];
@@ -59,16 +60,16 @@ class ProjectController extends AbstractController
     }
 
     #[Route('/api/projects/{id}', name: 'api_project_show', methods: ['GET'])]
-    public function show(Project $project, ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse): JsonResponse
-    {
+    public function show(
+        Project $project,
+        ProjectSecurityService $projectSecurityService,
+        ApiResponseService $apiResponse
+    ): JsonResponse {
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
 
         if (!$currentUser instanceof User) {
-            return $apiResponse->error(
-                'User not authenticated',
-                401
-            );
+            throw new UnauthorizedException();
         }
 
         if (
@@ -77,9 +78,8 @@ class ProjectController extends AbstractController
                 $currentUser
             )
         ) {
-            return $apiResponse->error(
-                'Access denied to this project',
-                403
+            throw new ForbiddenException(
+                'Access denied to this project'
             );
         }
 
@@ -97,21 +97,20 @@ class ProjectController extends AbstractController
         ValidatorInterface $validator,
         SerializerInterface $serializer
     ): JsonResponse {
-        // Désérialisation JSON -> DTO
         $dto = $serializer->deserialize(
             $request->getContent(),
             CreateProjectDto::class,
             'json'
         );
 
-        // Validation DTO
         $errors = $validator->validate($dto);
 
         if (count($errors) > 0) {
-            return $apiResponse->validationError($errors);
+            throw new ValidationException(
+                $apiResponse->formatValidationErrors($errors)
+            );
         }
 
-        // Création projet
         $project = new Project();
 
         $project->setName($dto->name);
@@ -130,11 +129,12 @@ class ProjectController extends AbstractController
             );
         }
 
-        // Validation Entity
         $projectErrors = $validator->validate($project);
 
         if (count($projectErrors) > 0) {
-            return $apiResponse->validationError($projectErrors);
+            throw new ValidationException(
+                $apiResponse->formatValidationErrors($projectErrors)
+            );
         }
 
         $entityManager->persist($project);
@@ -161,13 +161,9 @@ class ProjectController extends AbstractController
         $currentUser = $this->getUser();
 
         if (!$currentUser instanceof User) {
-            return $apiResponse->error(
-                'User not authenticated',
-                401
-            );
+            throw new UnauthorizedException();
         }
 
-        // Vérifie rôle project_manager
         if (
             !$projectSecurityService->hasProjectRole(
                 $project,
@@ -175,27 +171,25 @@ class ProjectController extends AbstractController
                 'project_manager'
             )
         ) {
-            return $apiResponse->error(
-                'Only project managers can update projects',
-                403
+            throw new ForbiddenException(
+                'Only project managers can update projects'
             );
         }
 
-        // Désérialisation JSON -> DTO
         $dto = $serializer->deserialize(
             $request->getContent(),
             UpdateProjectDto::class,
             'json'
         );
 
-        // Validation DTO
         $errors = $validator->validate($dto);
 
         if (count($errors) > 0) {
-            return $apiResponse->validationError($errors);
+            throw new ValidationException(
+                $apiResponse->formatValidationErrors($errors)
+            );
         }
 
-        // Mise à jour champs
         if ($dto->name !== null) {
             $project->setName($dto->name);
         }
@@ -220,11 +214,12 @@ class ProjectController extends AbstractController
             );
         }
 
-        // Validation Entity
         $projectErrors = $validator->validate($project);
 
         if (count($projectErrors) > 0) {
-            return $apiResponse->validationError($projectErrors);
+            throw new ValidationException(
+                $apiResponse->formatValidationErrors($projectErrors)
+            );
         }
 
         $entityManager->flush();
@@ -236,16 +231,17 @@ class ProjectController extends AbstractController
     }
 
     #[Route('/api/projects/{id}', name: 'api_project_delete', methods: ['DELETE'])]
-    public function delete(Project $project, EntityManagerInterface $entityManager, ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse): JsonResponse 
-    {
+    public function delete(
+        Project $project,
+        EntityManagerInterface $entityManager,
+        ProjectSecurityService $projectSecurityService,
+        ApiResponseService $apiResponse
+    ): JsonResponse {
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
 
         if (!$currentUser instanceof User) {
-            return $apiResponse->error(
-                'User not authenticated',
-                401
-            );
+            throw new UnauthorizedException();
         }
 
         if (
@@ -255,9 +251,8 @@ class ProjectController extends AbstractController
                 'project_manager'
             )
         ) {
-            return $apiResponse->error(
-                'Only project managers can delete projects',
-                403
+            throw new ForbiddenException(
+                'Only project managers can delete projects'
             );
         }
 
@@ -271,17 +266,16 @@ class ProjectController extends AbstractController
     }
 
     #[Route('/api/projects/{id}/board', name: 'api_project_board', methods: ['GET'])]
-    public function board(Project $project, ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse): JsonResponse
-    {
-        // Vérification si user est associé au projet
+    public function board(
+        Project $project,
+        ProjectSecurityService $projectSecurityService,
+        ApiResponseService $apiResponse
+    ): JsonResponse {
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
 
         if (!$currentUser instanceof User) {
-            return $apiResponse->error(
-                'User not authenticated',
-                401
-            );
+            throw new UnauthorizedException();
         }
 
         if (
@@ -290,9 +284,8 @@ class ProjectController extends AbstractController
                 $currentUser
             )
         ) {
-            return $apiResponse->error(
-                'Access denied to this project',
-                403
+            throw new ForbiddenException(
+                'Access denied to this project'
             );
         }
 
@@ -336,18 +329,20 @@ class ProjectController extends AbstractController
     }
 
     #[Route('/api/projects/{id}/members', name: 'api_project_add_member', methods: ['POST'])]
-    public function addMember(Project $project,
-    Request $request, UserRepository $userRepository, ProjectRoleRepository $projectRoleRepository, EntityManagerInterface $entityManager, 
-    ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse): JsonResponse
-    {
+    public function addMember(
+        Project $project,
+        Request $request,
+        UserRepository $userRepository,
+        ProjectRoleRepository $projectRoleRepository,
+        EntityManagerInterface $entityManager,
+        ProjectSecurityService $projectSecurityService,
+        ApiResponseService $apiResponse
+    ): JsonResponse {
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
 
         if (!$currentUser instanceof User) {
-            return $apiResponse->error(
-                'User not authenticated',
-                401
-            );
+            throw new UnauthorizedException();
         }
 
         if (
@@ -357,43 +352,44 @@ class ProjectController extends AbstractController
                 'project_manager'
             )
         ) {
-            return $apiResponse->error(
-                'Only project managers can add members',
-                403
+            throw new ForbiddenException(
+                'Only project managers can add members'
             );
         }
 
         $data = json_decode($request->getContent(), true);
 
         if (!isset($data['userId'])) {
-            return $apiResponse->error(
-                'userId is required',
-                400
-            );
+            throw new ValidationException([
+                [
+                    'field' => 'userId',
+                    'message' => 'userId is required',
+                ],
+            ]);
         }
 
         if (!isset($data['projectRoleId'])) {
-            return $apiResponse->error(
-                'projectRoleId is required',
-                400
-            );
+            throw new ValidationException([
+                [
+                    'field' => 'projectRoleId',
+                    'message' => 'projectRoleId is required',
+                ],
+            ]);
         }
 
         $user = $userRepository->find($data['userId']);
 
         if (!$user) {
-            return $apiResponse->error(
-                'User not found',
-                404
+            throw new NotFoundException(
+                'User not found'
             );
         }
 
         $projectRole = $projectRoleRepository->find($data['projectRoleId']);
 
         if (!$projectRole) {
-            return $apiResponse->error(
-                'Project role not found',
-                404
+            throw new NotFoundException(
+                'Project role not found'
             );
         }
 
