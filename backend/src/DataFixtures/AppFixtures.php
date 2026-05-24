@@ -7,6 +7,7 @@ use App\Entity\ProjectMember;
 use App\Entity\ProjectRole;
 use App\Entity\Ticket;
 use App\Entity\User;
+use App\Entity\TicketComment;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Persistence\ObjectManager;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
@@ -144,6 +145,26 @@ class AppFixtures extends Fixture
         $ticket3->setCreatedBy($admin);
 
         $manager->persist($ticket3);
+
+        /*
+        |--------------------------------------------------------------------------
+        | COMMENTS
+        |--------------------------------------------------------------------------
+        */
+
+        $comment1 = new TicketComment();
+        $comment1->setContent('Le système JWT est terminé');
+        $comment1->setTicket($ticket1);
+        $comment1->setCreatedBy($admin);
+
+        $manager->persist($comment1);
+
+        $comment2 = new TicketComment();
+        $comment2->setContent('Le board Angular est en cours');
+        $comment2->setTicket($ticket2);
+        $comment2->setCreatedBy($developer);
+
+        $manager->persist($comment2);
 
         /*
         |--------------------------------------------------------------------------
