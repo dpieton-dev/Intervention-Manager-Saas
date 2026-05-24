@@ -12,9 +12,8 @@ use Symfony\Component\Routing\Attribute\Route;
 class MeController extends AbstractController
 {
     #[Route('/api/me', name: 'api_me', methods: ['GET'])]
-    public function me(
-        ApiResponseService $apiResponse
-    ): JsonResponse {
+    public function me(ApiResponseService $apiResponse): JsonResponse 
+    {
         /** @var User|null $user */
         $user = $this->getUser();
 

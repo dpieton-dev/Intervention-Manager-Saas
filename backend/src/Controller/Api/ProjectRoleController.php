@@ -23,19 +23,18 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
 class ProjectRoleController extends AbstractController
 {
     #[Route('/api/projects/{id}/roles', name: 'api_project_roles', methods: ['GET'])]
-    public function index(
-        Project $project,
-        ProjectSecurityService $projectSecurityService,
-        ApiResponseService $apiResponse
-    ): JsonResponse {
+    public function index(Project $project, ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse): JsonResponse 
+    {
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
 
-        if (!$currentUser instanceof User) {
+        if (!$currentUser instanceof User) 
+        {
             throw new UnauthorizedException();
         }
 
-        if (!$projectSecurityService->isProjectMember($project, $currentUser)) {
+        if (!$projectSecurityService->isProjectMember($project, $currentUser)) 
+        {
             throw new ForbiddenException('Access denied to this project');
         }
 
@@ -52,15 +51,9 @@ class ProjectRoleController extends AbstractController
     }
 
     #[Route('/api/projects/{id}/roles', name: 'api_project_role_create', methods: ['POST'])]
-    public function create(
-        Project $project,
-        Request $request,
-        EntityManagerInterface $entityManager,
-        ProjectSecurityService $projectSecurityService,
-        ApiResponseService $apiResponse,
-        ValidatorInterface $validator,
-        SerializerInterface $serializer
-    ): JsonResponse {
+    public function create(Project $project, Request $request, EntityManagerInterface $entityManager, ProjectSecurityService $projectSecurityService,
+        ApiResponseService $apiResponse, ValidatorInterface $validator, SerializerInterface $serializer): JsonResponse 
+    {
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
 
@@ -68,30 +61,18 @@ class ProjectRoleController extends AbstractController
             throw new UnauthorizedException();
         }
 
-        if (
-            !$projectSecurityService->hasProjectRole(
-                $project,
-                $currentUser,
-                'project_manager'
-            )
-        ) {
-            throw new ForbiddenException(
-                'Only project managers can create roles'
-            );
+        if (!$projectSecurityService->hasProjectRole($project, $currentUser, 'project_manager')) 
+        {
+            throw new ForbiddenException('Only project managers can create roles');
         }
 
-        $dto = $serializer->deserialize(
-            $request->getContent(),
-            CreateProjectRoleDto::class,
-            'json'
-        );
+        $dto = $serializer->deserialize($request->getContent(), CreateProjectRoleDto::class, 'json');
 
         $errors = $validator->validate($dto);
 
-        if (count($errors) > 0) {
-            throw new ValidationException(
-                $apiResponse->formatValidationErrors($errors)
-            );
+        if (count($errors) > 0)
+        {
+            throw new ValidationException($apiResponse->formatValidationErrors($errors));
         }
 
         $role = new ProjectRole();
@@ -111,57 +92,43 @@ class ProjectRoleController extends AbstractController
     }
 
     #[Route('/api/project-roles/{id}', name: 'api_project_role_update', methods: ['PUT'])]
-    public function update(
-        ProjectRole $role,
-        Request $request,
-        EntityManagerInterface $entityManager,
-        ProjectSecurityService $projectSecurityService,
-        ApiResponseService $apiResponse,
-        ValidatorInterface $validator,
-        SerializerInterface $serializer
-    ): JsonResponse {
+    public function update(ProjectRole $role, Request $request, EntityManagerInterface $entityManager, ProjectSecurityService $projectSecurityService,
+        ApiResponseService $apiResponse, ValidatorInterface $validator, SerializerInterface $serializer): JsonResponse 
+    {
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
 
-        if (!$currentUser instanceof User) {
+        if (!$currentUser instanceof User)
+            {
             throw new UnauthorizedException();
         }
 
-        if (
-            !$projectSecurityService->hasProjectRole(
-                $role->getProject(),
-                $currentUser,
-                'project_manager'
-            )
-        ) {
-            throw new ForbiddenException(
-                'Only project managers can manage roles'
-            );
+        if (!$projectSecurityService->hasProjectRole( $role->getProject(), $currentUser, 'project_manager')) 
+        {
+            throw new ForbiddenException('Only project managers can manage roles');
         }
 
-        $dto = $serializer->deserialize(
-            $request->getContent(),
-            UpdateProjectRoleDto::class,
-            'json'
-        );
+        $dto = $serializer->deserialize($request->getContent(), UpdateProjectRoleDto::class, 'json');
 
         $errors = $validator->validate($dto);
 
-        if (count($errors) > 0) {
-            throw new ValidationException(
-                $apiResponse->formatValidationErrors($errors)
-            );
+        if (count($errors) > 0)
+        {
+            throw new ValidationException($apiResponse->formatValidationErrors($errors));
         }
 
-        if ($dto->name !== null) {
+        if ($dto->name !== null)
+        {
             $role->setName($dto->name);
         }
 
-        if ($dto->code !== null) {
+        if ($dto->code !== null)
+        {
             $role->setCode($dto->code);
         }
 
-        if ($dto->description !== null) {
+        if ($dto->description !== null)
+        {
             $role->setDescription($dto->description);
         }
 
@@ -174,12 +141,8 @@ class ProjectRoleController extends AbstractController
     }
 
     #[Route('/api/project-roles/{id}', name: 'api_project_role_delete', methods: ['DELETE'])]
-    public function delete(
-        ProjectRole $role,
-        EntityManagerInterface $entityManager,
-        ProjectSecurityService $projectSecurityService,
-        ApiResponseService $apiResponse
-    ): JsonResponse {
+    public function delete(ProjectRole $role,EntityManagerInterface $entityManager,ProjectSecurityService $projectSecurityService,ApiResponseService $apiResponse): JsonResponse 
+    {
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
 
@@ -187,16 +150,9 @@ class ProjectRoleController extends AbstractController
             throw new UnauthorizedException();
         }
 
-        if (
-            !$projectSecurityService->hasProjectRole(
-                $role->getProject(),
-                $currentUser,
-                'project_manager'
-            )
-        ) {
-            throw new ForbiddenException(
-                'Only project managers can manage roles'
-            );
+        if (!$projectSecurityService->hasProjectRole($role->getProject(),$currentUser,'project_manager')) 
+        {
+            throw new ForbiddenException('Only project managers can manage roles');
         }
 
         $entityManager->remove($role);

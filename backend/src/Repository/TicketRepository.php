@@ -16,22 +16,14 @@ class TicketRepository extends ServiceEntityRepository
         parent::__construct($registry, Ticket::class);
     }
 
-    public function findFilteredTickets(
-        array $filters,
-        int $page = 1,
-        int $limit = 10
-    ): array {
+    public function findFilteredTickets(array $filters, int $page = 1, int $limit = 10): array 
+    {
         $queryBuilder = $this->createQueryBuilder('t')
             ->leftJoin('t.project', 'p')
             ->leftJoin('t.assignedTo', 'a')
             ->leftJoin('t.createdBy', 'c');
 
-        /*
-        |--------------------------------------------------------------------------
-        | FILTERS
-        |--------------------------------------------------------------------------
-        */
-
+        // FILTERS
         // Status
         if (!empty($filters['status'])) {
             $queryBuilder
@@ -77,32 +69,20 @@ class TicketRepository extends ServiceEntityRepository
                 );
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | PAGINATION
-        |--------------------------------------------------------------------------
-        */
+        // PAGINATION
 
         $queryBuilder
             ->setFirstResult(($page - 1) * $limit)
             ->setMaxResults($limit)
             ->orderBy('t.createdAt', 'DESC');
 
-        /*
-        |--------------------------------------------------------------------------
-        | RESULTS
-        |--------------------------------------------------------------------------
-        */
+        // RESULTS
 
         $tickets = $queryBuilder
             ->getQuery()
             ->getResult();
 
-        /*
-        |--------------------------------------------------------------------------
-        | TOTAL
-        |--------------------------------------------------------------------------
-        */
+        // TOTAL
 
         $countQueryBuilder = clone $queryBuilder;
 

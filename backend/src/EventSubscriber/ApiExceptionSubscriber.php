@@ -17,9 +17,8 @@ class ApiExceptionSubscriber implements EventSubscriberInterface
         ];
     }
 
-    public function onKernelException(
-        ExceptionEvent $event
-    ): void {
+    public function onKernelException(ExceptionEvent $event): void 
+    {
         $exception = $event->getThrowable();
 
         // Vérifie si c'est une exception API personnalisée

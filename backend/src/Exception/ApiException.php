@@ -6,11 +6,8 @@ use Exception;
 
 class ApiException extends Exception
 {
-    public function __construct(
-        string $message,
-        private int $statusCode = 400,
-        private mixed $errors = null
-    ) {
+    public function __construct(string $message, private int $statusCode = 400, private mixed $errors = null) 
+    {
         parent::__construct($message);
     }
 

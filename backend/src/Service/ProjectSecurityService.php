@@ -24,12 +24,10 @@ class ProjectSecurityService
     /**
      * Vérifie si un utilisateur possède un rôle précis dans un projet.
      */
-    public function hasProjectRole(
-        Project $project,
-        User $user,
-        string $roleCode
-    ): bool {
-        foreach ($project->getMembers() as $member) {
+    public function hasProjectRole(Project $project, User $user, string $roleCode): bool 
+    {
+        foreach ($project->getMembers() as $member)
+        {
             if (
                 $member->getUser()?->getId() === $user->getId()
                 && $member->getProjectRole()?->getCode() === $roleCode

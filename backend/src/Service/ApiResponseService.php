@@ -6,11 +6,8 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 
 class ApiResponseService
 {
-    public function success(
-        mixed $data = null,
-        string $message = 'Success',
-        int $statusCode = 200
-    ): JsonResponse {
+    public function success(mixed $data = null, string $message = 'Success', int $statusCode = 200): JsonResponse 
+    {
         return new JsonResponse([
             'success' => true,
             'message' => $message,
@@ -18,11 +15,8 @@ class ApiResponseService
         ], $statusCode);
     }
 
-    public function error(
-        string $message,
-        int $statusCode = 400,
-        mixed $errors = null
-    ): JsonResponse {
+    public function error(string $message, int $statusCode = 400, mixed $errors = null): JsonResponse
+    {
         return new JsonResponse([
             'success' => false,
             'code' => $statusCode,

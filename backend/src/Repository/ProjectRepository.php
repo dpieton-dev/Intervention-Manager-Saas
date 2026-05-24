@@ -9,18 +9,13 @@ use Doctrine\Persistence\ManagerRegistry;
 
 class ProjectRepository extends ServiceEntityRepository
 {
-    public function __construct(
-        ManagerRegistry $registry
-    ) {
+    public function __construct(ManagerRegistry $registry)
+    {
         parent::__construct($registry, Project::class);
     }
 
-    public function findFilteredProjectsForUser(
-        User $user,
-        array $filters,
-        int $page = 1,
-        int $limit = 10
-    ): array {
+    public function findFilteredProjectsForUser(User $user, array $filters, int $page = 1, int $limit = 10): array 
+    {
         $queryBuilder = $this->createQueryBuilder('p')
             ->join('p.members', 'm')
             ->join('m.user', 'u')

@@ -26,17 +26,10 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
 class TicketController extends AbstractController
 {
     #[Route('/api/tickets', name: 'api_tickets', methods: ['GET'])]
-    public function index(
-        Request $request,
-        TicketRepository $ticketRepository,
-        ApiResponseService $apiResponse
-    ): JsonResponse {
+    public function index(Request $request, TicketRepository $ticketRepository, ApiResponseService $apiResponse): JsonResponse 
+    {
 
-        /*
-        |--------------------------------------------------------------------------
-        | PAGINATION
-        |--------------------------------------------------------------------------
-        */
+        //PAGINATION
 
         $page = max(
             1,
@@ -48,11 +41,7 @@ class TicketController extends AbstractController
             (int) $request->query->get('limit', 10)
         );
 
-        /*
-        |--------------------------------------------------------------------------
-        | FILTERS
-        |--------------------------------------------------------------------------
-        */
+        // FILTERS
 
         $filters = [
             'status' => $request->query->get('status'),
@@ -63,11 +52,7 @@ class TicketController extends AbstractController
             'search' => $request->query->get('search'),
         ];
 
-        /*
-        |--------------------------------------------------------------------------
-        | REPOSITORY
-        |--------------------------------------------------------------------------
-        */
+        // REPOSITORY
 
         $result = $ticketRepository->findFilteredTickets(
             $filters,
@@ -75,11 +60,7 @@ class TicketController extends AbstractController
             $limit
         );
 
-        /*
-        |--------------------------------------------------------------------------
-        | FORMAT TICKETS
-        |--------------------------------------------------------------------------
-        */
+        // FORMAT TICKETS
 
         $tickets = [];
 
@@ -87,11 +68,7 @@ class TicketController extends AbstractController
             $tickets[] = $this->formatTicket($ticket);
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | RESPONSE
-        |--------------------------------------------------------------------------
-        */
+        //RESPONSE
 
         return $apiResponse->success([
             'tickets' => $tickets,
@@ -101,10 +78,8 @@ class TicketController extends AbstractController
     }
 
     #[Route('/api/tickets/{id}', name: 'api_ticket_show', methods: ['GET'])]
-    public function show(
-        Ticket $ticket,
-        ApiResponseService $apiResponse
-    ): JsonResponse {
+    public function show(Ticket $ticket, ApiResponseService $apiResponse): JsonResponse 
+    {
         return $apiResponse->success(
             $this->formatTicket($ticket),
             'Ticket retrieved successfully'
@@ -112,15 +87,9 @@ class TicketController extends AbstractController
     }
 
     #[Route('/api/tickets', name: 'api_ticket_create', methods: ['POST'])]
-    public function create(
-        Request $request,
-        EntityManagerInterface $entityManager,
-        ProjectRepository $projectRepository,
-        ProjectSecurityService $projectSecurityService,
-        ApiResponseService $apiResponse,
-        ValidatorInterface $validator,
-        SerializerInterface $serializer
-    ): JsonResponse {
+    public function create(Request $request, EntityManagerInterface $entityManager, ProjectRepository $projectRepository, ProjectSecurityService $projectSecurityService,
+        ApiResponseService $apiResponse, ValidatorInterface $validator, SerializerInterface $serializer): JsonResponse
+    {
         /** @var User|null $user */
         $user = $this->getUser();
 
@@ -128,18 +97,12 @@ class TicketController extends AbstractController
             throw new UnauthorizedException();
         }
 
-        $dto = $serializer->deserialize(
-            $request->getContent(),
-            CreateTicketDto::class,
-            'json'
-        );
+        $dto = $serializer->deserialize($request->getContent(), CreateTicketDto::class, 'json');
 
         $errors = $validator->validate($dto);
 
         if (count($errors) > 0) {
-            throw new ValidationException(
-                $apiResponse->formatValidationErrors($errors)
-            );
+            throw new ValidationException($apiResponse->formatValidationErrors($errors));
         }
 
         $project = $projectRepository->find($dto->projectId);
@@ -171,15 +134,9 @@ class TicketController extends AbstractController
     }
 
     #[Route('/api/tickets/{id}', name: 'api_ticket_update', methods: ['PUT'])]
-    public function update(
-        Ticket $ticket,
-        Request $request,
-        EntityManagerInterface $entityManager,
-        ProjectSecurityService $projectSecurityService,
-        ApiResponseService $apiResponse,
-        ValidatorInterface $validator,
-        SerializerInterface $serializer
-    ): JsonResponse {
+    public function update(Ticket $ticket, Request $request, EntityManagerInterface $entityManager, ProjectSecurityService $projectSecurityService,
+        ApiResponseService $apiResponse, ValidatorInterface $validator, SerializerInterface $serializer): JsonResponse
+    {
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
 
@@ -187,22 +144,17 @@ class TicketController extends AbstractController
             throw new UnauthorizedException();
         }
 
-        if (!$projectSecurityService->isProjectMember($ticket->getProject(), $currentUser)) {
+        if (!$projectSecurityService->isProjectMember($ticket->getProject(), $currentUser)) 
+        {
             throw new ForbiddenException('Access denied to this project');
         }
 
-        $dto = $serializer->deserialize(
-            $request->getContent(),
-            UpdateTicketDto::class,
-            'json'
-        );
+        $dto = $serializer->deserialize($request->getContent(), UpdateTicketDto::class, 'json');
 
         $errors = $validator->validate($dto);
 
         if (count($errors) > 0) {
-            throw new ValidationException(
-                $apiResponse->formatValidationErrors($errors)
-            );
+            throw new ValidationException($apiResponse->formatValidationErrors($errors));
         }
 
         if ($dto->title !== null) {
@@ -232,12 +184,8 @@ class TicketController extends AbstractController
     }
 
     #[Route('/api/tickets/{id}', name: 'api_ticket_delete', methods: ['DELETE'])]
-    public function delete(
-        Ticket $ticket,
-        EntityManagerInterface $entityManager,
-        ProjectSecurityService $projectSecurityService,
-        ApiResponseService $apiResponse
-    ): JsonResponse {
+    public function delete(Ticket $ticket, EntityManagerInterface $entityManager, ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse): JsonResponse
+    {
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
 
@@ -245,13 +193,8 @@ class TicketController extends AbstractController
             throw new UnauthorizedException();
         }
 
-        if (
-            !$projectSecurityService->hasProjectRole(
-                $ticket->getProject(),
-                $currentUser,
-                'project_manager'
-            )
-        ) {
+        if (!$projectSecurityService->hasProjectRole($ticket->getProject(), $currentUser, 'project_manager')) 
+        {
             throw new ForbiddenException('Only project managers can delete tickets');
         }
 
@@ -266,33 +209,26 @@ class TicketController extends AbstractController
 
     #[Route('/api/tickets/{id}/assign', name: 'api_ticket_assign', methods: ['PATCH'])]
     public function assign(
-        Ticket $ticket,
-        Request $request,
-        UserRepository $userRepository,
-        EntityManagerInterface $entityManager,
-        ProjectSecurityService $projectSecurityService,
-        ApiResponseService $apiResponse
-    ): JsonResponse {
+        Ticket $ticket, Request $request, UserRepository $userRepository, EntityManagerInterface $entityManager, 
+        ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse): JsonResponse 
+    {
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
 
-        if (!$currentUser instanceof User) {
+        if (!$currentUser instanceof User)
+        {
             throw new UnauthorizedException();
         }
 
-        if (
-            !$projectSecurityService->hasProjectRole(
-                $ticket->getProject(),
-                $currentUser,
-                'project_manager'
-            )
-        ) {
+        if (!$projectSecurityService->hasProjectRole($ticket->getProject(), $currentUser,'project_manager')) 
+        {
             throw new ForbiddenException('Only project managers can assign tickets');
         }
 
         $data = json_decode($request->getContent(), true);
 
-        if (!isset($data['assignedTo'])) {
+        if (!isset($data['assignedTo']))
+        {
             throw new ValidationException([
                 [
                     'field' => 'assignedTo',
@@ -303,7 +239,8 @@ class TicketController extends AbstractController
 
         $assignedUser = $userRepository->find($data['assignedTo']);
 
-        if (!$assignedUser) {
+        if (!$assignedUser)
+        {
             throw new NotFoundException('User not found');
         }
 
@@ -319,21 +256,19 @@ class TicketController extends AbstractController
     }
 
     #[Route('/api/tickets/{id}/status', name: 'api_ticket_status', methods: ['PATCH'])]
-    public function updateStatus(
-        Ticket $ticket,
-        Request $request,
-        EntityManagerInterface $entityManager,
-        ProjectSecurityService $projectSecurityService,
-        ApiResponseService $apiResponse
-    ): JsonResponse {
+    public function updateStatus(Ticket $ticket, Request $request, EntityManagerInterface $entityManager, ProjectSecurityService $projectSecurityService,
+        ApiResponseService $apiResponse): JsonResponse
+    {
         /** @var User|null $user */
         $user = $this->getUser();
 
-        if (!$user instanceof User) {
+        if (!$user instanceof User)
+        {
             throw new UnauthorizedException();
         }
 
-        if (!$projectSecurityService->isProjectMember($ticket->getProject(), $user)) {
+        if (!$projectSecurityService->isProjectMember($ticket->getProject(), $user))
+        {
             throw new ForbiddenException('Access denied to this project');
         }
 
@@ -347,7 +282,8 @@ class TicketController extends AbstractController
 
         $data = json_decode($request->getContent(), true);
 
-        if (!isset($data['status'])) {
+        if (!isset($data['status']))
+        {
             throw new ValidationException([
                 [
                     'field' => 'status',
@@ -356,7 +292,8 @@ class TicketController extends AbstractController
             ]);
         }
 
-        if (!in_array($data['status'], $allowedStatuses, true)) {
+        if (!in_array($data['status'], $allowedStatuses, true))
+        {
             throw new ValidationException([
                 [
                     'field' => 'status',

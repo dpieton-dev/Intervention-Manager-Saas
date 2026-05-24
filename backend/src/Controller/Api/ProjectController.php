@@ -27,11 +27,8 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
 class ProjectController extends AbstractController
 {
     #[Route('/api/projects', name: 'api_projects', methods: ['GET'])]
-    public function index(
-        Request $request,
-        ProjectRepository $projectRepository,
-        ApiResponseService $apiResponse
-    ): JsonResponse {
+    public function index(Request $request, ProjectRepository $projectRepository, ApiResponseService $apiResponse): JsonResponse 
+    {
         /** @var User|null $user */
         $user = $this->getUser();
 
@@ -39,39 +36,17 @@ class ProjectController extends AbstractController
             throw new UnauthorizedException();
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | PAGINATION
-        |--------------------------------------------------------------------------
-        */
+        // PAGINATION
+        $page = max(1, (int) $request->query->get('page', 1));
+        $limit = max(1,(int) $request->query->get('limit', 10));
 
-        $page = max(
-            1,
-            (int) $request->query->get('page', 1)
-        );
-
-        $limit = max(
-            1,
-            (int) $request->query->get('limit', 10)
-        );
-
-        /*
-        |--------------------------------------------------------------------------
-        | FILTERS
-        |--------------------------------------------------------------------------
-        */
-
+        // FILTERS
         $filters = [
             'status' => $request->query->get('status'),
             'search' => $request->query->get('search'),
         ];
 
-        /*
-        |--------------------------------------------------------------------------
-        | REPOSITORY
-        |--------------------------------------------------------------------------
-        */
-
+        // REPOSITORY
         $result = $projectRepository->findFilteredProjectsForUser(
             $user,
             $filters,
@@ -79,20 +54,13 @@ class ProjectController extends AbstractController
             $limit
         );
 
-        /*
-        |--------------------------------------------------------------------------
-        | FORMAT PROJECTS
-        |--------------------------------------------------------------------------
-        */
-
+        // FORMAT PROJECTS
         $projects = [];
-
-        foreach ($result['data'] as $project) {
-
+        foreach ($result['data'] as $project) 
+        {
             $membership = null;
-
-            foreach ($user->getProjectMemberships() as $projectMembership) {
-
+            foreach ($user->getProjectMemberships() as $projectMembership) 
+            {
                 if ($projectMembership->getProject()->getId() === $project->getId()) {
                     $membership = $projectMembership;
                     break;
@@ -101,7 +69,6 @@ class ProjectController extends AbstractController
 
             $projects[] = [
                 ...$this->formatProject($project),
-
                 'membershipRole' => $membership ? [
                     'id' => $membership->getProjectRole()->getId(),
                     'name' => $membership->getProjectRole()->getName(),
@@ -110,12 +77,7 @@ class ProjectController extends AbstractController
             ];
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | RESPONSE
-        |--------------------------------------------------------------------------
-        */
-
+        // RESPONSE
         return $apiResponse->success([
             'projects' => $projects,
             'pagination' => $result['pagination'],
@@ -124,11 +86,8 @@ class ProjectController extends AbstractController
     }
 
     #[Route('/api/projects/{id}', name: 'api_project_show', methods: ['GET'])]
-    public function show(
-        Project $project,
-        ProjectSecurityService $projectSecurityService,
-        ApiResponseService $apiResponse
-    ): JsonResponse {
+    public function show(Project $project, ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse): JsonResponse 
+    {
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
 
@@ -136,12 +95,8 @@ class ProjectController extends AbstractController
             throw new UnauthorizedException();
         }
 
-        if (
-            !$projectSecurityService->isProjectMember(
-                $project,
-                $currentUser
-            )
-        ) {
+        if (!$projectSecurityService->isProjectMember($project, $currentUser)) 
+        {
             throw new ForbiddenException(
                 'Access denied to this project'
             );
@@ -154,13 +109,8 @@ class ProjectController extends AbstractController
     }
 
     #[Route('/api/projects', name: 'api_project_create', methods: ['POST'])]
-    public function create(
-        Request $request,
-        EntityManagerInterface $entityManager,
-        ApiResponseService $apiResponse,
-        ValidatorInterface $validator,
-        SerializerInterface $serializer
-    ): JsonResponse {
+    public function create(Request $request, EntityManagerInterface $entityManager, ApiResponseService $apiResponse,ValidatorInterface $validator, SerializerInterface $serializer): JsonResponse 
+    {
         $dto = $serializer->deserialize(
             $request->getContent(),
             CreateProjectDto::class,
@@ -170,35 +120,26 @@ class ProjectController extends AbstractController
         $errors = $validator->validate($dto);
 
         if (count($errors) > 0) {
-            throw new ValidationException(
-                $apiResponse->formatValidationErrors($errors)
-            );
+            throw new ValidationException($apiResponse->formatValidationErrors($errors));
         }
 
         $project = new Project();
-
         $project->setName($dto->name);
         $project->setDescription($dto->description);
         $project->setStatus($dto->status);
 
         if ($dto->startDate) {
-            $project->setStartDate(
-                new \DateTimeImmutable($dto->startDate)
-            );
+            $project->setStartDate(new \DateTimeImmutable($dto->startDate));
         }
 
         if ($dto->endDate) {
-            $project->setEndDate(
-                new \DateTimeImmutable($dto->endDate)
-            );
+            $project->setEndDate(new \DateTimeImmutable($dto->endDate));
         }
 
         $projectErrors = $validator->validate($project);
 
         if (count($projectErrors) > 0) {
-            throw new ValidationException(
-                $apiResponse->formatValidationErrors($projectErrors)
-            );
+            throw new ValidationException($apiResponse->formatValidationErrors($projectErrors));
         }
 
         $entityManager->persist($project);
@@ -212,15 +153,9 @@ class ProjectController extends AbstractController
     }
 
     #[Route('/api/projects/{id}', name: 'api_project_update', methods: ['PUT'])]
-    public function update(
-        Project $project,
-        Request $request,
-        EntityManagerInterface $entityManager,
-        ProjectSecurityService $projectSecurityService,
-        ApiResponseService $apiResponse,
-        ValidatorInterface $validator,
-        SerializerInterface $serializer
-    ): JsonResponse {
+    public function update(Project $project, Request $request,EntityManagerInterface $entityManager,
+        ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse, ValidatorInterface $validator,SerializerInterface $serializer): JsonResponse 
+    {
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
 
@@ -228,30 +163,16 @@ class ProjectController extends AbstractController
             throw new UnauthorizedException();
         }
 
-        if (
-            !$projectSecurityService->hasProjectRole(
-                $project,
-                $currentUser,
-                'project_manager'
-            )
-        ) {
-            throw new ForbiddenException(
-                'Only project managers can update projects'
-            );
+        if (!$projectSecurityService->hasProjectRole($project, $currentUser,'project_manager')) 
+        {
+            throw new ForbiddenException('Only project managers can update projects');
         }
 
-        $dto = $serializer->deserialize(
-            $request->getContent(),
-            UpdateProjectDto::class,
-            'json'
-        );
-
+        $dto = $serializer->deserialize($request->getContent(), UpdateProjectDto::class, 'json');
         $errors = $validator->validate($dto);
 
         if (count($errors) > 0) {
-            throw new ValidationException(
-                $apiResponse->formatValidationErrors($errors)
-            );
+            throw new ValidationException($apiResponse->formatValidationErrors($errors));
         }
 
         if ($dto->name !== null) {
@@ -267,23 +188,17 @@ class ProjectController extends AbstractController
         }
 
         if ($dto->startDate !== null) {
-            $project->setStartDate(
-                new \DateTimeImmutable($dto->startDate)
-            );
+            $project->setStartDate(new \DateTimeImmutable($dto->startDate));
         }
 
         if ($dto->endDate !== null) {
-            $project->setEndDate(
-                new \DateTimeImmutable($dto->endDate)
-            );
+            $project->setEndDate(new \DateTimeImmutable($dto->endDate));
         }
 
         $projectErrors = $validator->validate($project);
 
         if (count($projectErrors) > 0) {
-            throw new ValidationException(
-                $apiResponse->formatValidationErrors($projectErrors)
-            );
+            throw new ValidationException($apiResponse->formatValidationErrors($projectErrors));
         }
 
         $entityManager->flush();
@@ -295,12 +210,8 @@ class ProjectController extends AbstractController
     }
 
     #[Route('/api/projects/{id}', name: 'api_project_delete', methods: ['DELETE'])]
-    public function delete(
-        Project $project,
-        EntityManagerInterface $entityManager,
-        ProjectSecurityService $projectSecurityService,
-        ApiResponseService $apiResponse
-    ): JsonResponse {
+    public function delete(Project $project, EntityManagerInterface $entityManager, ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse): JsonResponse 
+    {
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
 
@@ -308,16 +219,9 @@ class ProjectController extends AbstractController
             throw new UnauthorizedException();
         }
 
-        if (
-            !$projectSecurityService->hasProjectRole(
-                $project,
-                $currentUser,
-                'project_manager'
-            )
-        ) {
-            throw new ForbiddenException(
-                'Only project managers can delete projects'
-            );
+        if (!$projectSecurityService->hasProjectRole($project,$currentUser,'project_manager')) 
+        {
+            throw new ForbiddenException('Only project managers can delete projects');
         }
 
         $entityManager->remove($project);
@@ -330,11 +234,8 @@ class ProjectController extends AbstractController
     }
 
     #[Route('/api/projects/{id}/board', name: 'api_project_board', methods: ['GET'])]
-    public function board(
-        Project $project,
-        ProjectSecurityService $projectSecurityService,
-        ApiResponseService $apiResponse
-    ): JsonResponse {
+    public function board(Project $project, ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse): JsonResponse 
+    {
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
 
@@ -342,15 +243,9 @@ class ProjectController extends AbstractController
             throw new UnauthorizedException();
         }
 
-        if (
-            !$projectSecurityService->isProjectMember(
-                $project,
-                $currentUser
-            )
-        ) {
-            throw new ForbiddenException(
-                'Access denied to this project'
-            );
+        if (!$projectSecurityService->isProjectMember($project,$currentUser))
+        {
+            throw new ForbiddenException('Access denied to this project');
         }
 
         $board = [
@@ -361,8 +256,8 @@ class ProjectController extends AbstractController
             'done' => [],
         ];
 
-        foreach ($project->getTickets() as $ticket) {
-
+        foreach ($project->getTickets() as $ticket) 
+        {
             $ticketData = [
                 'id' => $ticket->getId(),
                 'title' => $ticket->getTitle(),
@@ -393,15 +288,9 @@ class ProjectController extends AbstractController
     }
 
     #[Route('/api/projects/{id}/members', name: 'api_project_add_member', methods: ['POST'])]
-    public function addMember(
-        Project $project,
-        Request $request,
-        UserRepository $userRepository,
-        ProjectRoleRepository $projectRoleRepository,
-        EntityManagerInterface $entityManager,
-        ProjectSecurityService $projectSecurityService,
-        ApiResponseService $apiResponse
-    ): JsonResponse {
+    public function addMember(Project $project,Request $request,UserRepository $userRepository,ProjectRoleRepository $projectRoleRepository,
+        EntityManagerInterface $entityManager,ProjectSecurityService $projectSecurityService,ApiResponseService $apiResponse): JsonResponse 
+    {
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
 
@@ -409,16 +298,9 @@ class ProjectController extends AbstractController
             throw new UnauthorizedException();
         }
 
-        if (
-            !$projectSecurityService->hasProjectRole(
-                $project,
-                $currentUser,
-                'project_manager'
-            )
-        ) {
-            throw new ForbiddenException(
-                'Only project managers can add members'
-            );
+        if (!$projectSecurityService->hasProjectRole($project,$currentUser,'project_manager')) 
+        {
+            throw new ForbiddenException('Only project managers can add members');
         }
 
         $data = json_decode($request->getContent(), true);
@@ -444,17 +326,13 @@ class ProjectController extends AbstractController
         $user = $userRepository->find($data['userId']);
 
         if (!$user) {
-            throw new NotFoundException(
-                'User not found'
-            );
+            throw new NotFoundException('User not found');
         }
 
         $projectRole = $projectRoleRepository->find($data['projectRoleId']);
 
         if (!$projectRole) {
-            throw new NotFoundException(
-                'Project role not found'
-            );
+            throw new NotFoundException('Project role not found');
         }
 
         $member = new ProjectMember();
