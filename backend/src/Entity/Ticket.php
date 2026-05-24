@@ -3,6 +3,8 @@
 namespace App\Entity;
 
 use App\Repository\TicketRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Validator\Constraints as Assert;
@@ -68,6 +70,12 @@ class Ticket
     #[ORM\JoinColumn(nullable: false)]
     private ?Project $project = null;
 
+    /**
+     * @var Collection<int, TicketComment>
+     */
+    #[ORM\OneToMany(targetEntity: TicketComment::class, mappedBy: 'ticket')]
+    private Collection $comments;
+
     public function __construct()
     {
         // Date de création automatique
@@ -78,6 +86,7 @@ class Ticket
         $this->status = 'todo';
         // Priorité par défaut
         $this->priority = 'medium';
+        $this->comments = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -189,6 +198,36 @@ class Ticket
     public function setProject(?Project $project): static
     {
         $this->project = $project;
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, TicketComment>
+     */
+    public function getComments(): Collection
+    {
+        return $this->comments;
+    }
+
+    public function addComment(TicketComment $comment): static
+    {
+        if (!$this->comments->contains($comment)) {
+            $this->comments->add($comment);
+            $comment->setTicket($this);
+        }
+
+        return $this;
+    }
+
+    public function removeComment(TicketComment $comment): static
+    {
+        if ($this->comments->removeElement($comment)) {
+            // set the owning side to null (unless already changed)
+            if ($comment->getTicket() === $this) {
+                $comment->setTicket(null);
+            }
+        }
 
         return $this;
     }

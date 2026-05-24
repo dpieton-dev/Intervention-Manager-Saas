@@ -55,12 +55,19 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\OneToMany(targetEntity: ProjectMember::class, mappedBy: 'user')]
     private Collection $projectMemberships;
 
+    /**
+     * @var Collection<int, TicketComment>
+     */
+    #[ORM\OneToMany(targetEntity: TicketComment::class, mappedBy: 'createdBy')]
+    private Collection $ticketComments;
+
     public function __construct()
     {
         $this->createdAt = new DateTimeImmutable();
         $this->tickets = new ArrayCollection();
         $this->assignedTickets = new ArrayCollection();
         $this->projectMemberships = new ArrayCollection();
+        $this->ticketComments = new ArrayCollection();
     }
     
     public function getId(): ?int
@@ -240,6 +247,36 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
             // set the owning side to null (unless already changed)
             if ($projectMembership->getUser() === $this) {
                 $projectMembership->setUser(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, TicketComment>
+     */
+    public function getTicketComments(): Collection
+    {
+        return $this->ticketComments;
+    }
+
+    public function addTicketComment(TicketComment $ticketComment): static
+    {
+        if (!$this->ticketComments->contains($ticketComment)) {
+            $this->ticketComments->add($ticketComment);
+            $ticketComment->setCreatedBy($this);
+        }
+
+        return $this;
+    }
+
+    public function removeTicketComment(TicketComment $ticketComment): static
+    {
+        if ($this->ticketComments->removeElement($ticketComment)) {
+            // set the owning side to null (unless already changed)
+            if ($ticketComment->getCreatedBy() === $this) {
+                $ticketComment->setCreatedBy(null);
             }
         }
 
