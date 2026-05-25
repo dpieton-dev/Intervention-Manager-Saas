@@ -4,7 +4,7 @@ namespace App\Dto\TicketComment;
 
 use Symfony\Component\Validator\Constraints as Assert;
 
-class CreateTicketCommentDto
+class CreateTicketComment
 {
     // Contenu du commentaire
     #[Assert\NotBlank(message: 'Comment content is required')]

@@ -4,7 +4,7 @@ namespace App\Dto\Ticket;
 
 use Symfony\Component\Validator\Constraints as Assert;
 
-class CreateTicketDto
+class CreateTicket
 {
     #[Assert\NotBlank(message: 'Title is required')]
     #[Assert\Length(
