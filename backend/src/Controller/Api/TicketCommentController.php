@@ -7,11 +7,11 @@ use App\Entity\Ticket;
 use App\Entity\TicketComment;
 use App\Entity\User;
 use App\Exception\ForbiddenException;
-use App\Exception\NotFoundException;
 use App\Exception\UnauthorizedException;
 use App\Exception\ValidationException;
 use App\Service\ApiResponseService;
 use App\Service\ProjectSecurityService;
+use App\Service\TicketActivityService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -22,48 +22,27 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 class TicketCommentController extends AbstractController
 {
-    /*
-    |--------------------------------------------------------------------------
-    | GET COMMENTS OF A TICKET
-    |--------------------------------------------------------------------------
-    */
-
-    #[Route(
-        '/api/tickets/{id}/comments',
-        name: 'api_ticket_comments',
-        methods: ['GET']
-    )]
+    #[Route('/api/tickets/{id}/comments', name: 'api_ticket_comments', methods: ['GET'])]
     public function index(
         Ticket $ticket,
         ProjectSecurityService $projectSecurityService,
         ApiResponseService $apiResponse
     ): JsonResponse {
-
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
 
-        // Vérifie authentification
         if (!$currentUser instanceof User) {
             throw new UnauthorizedException();
         }
 
-        // Vérifie accès au projet
-        if (
-            !$projectSecurityService->isProjectMember(
-                $ticket->getProject(),
-                $currentUser
-            )
-        ) {
-            throw new ForbiddenException(
-                'Access denied to this project'
-            );
+        // Sécurité : seuls les membres du projet peuvent lire les commentaires
+        if (!$projectSecurityService->isProjectMember($ticket->getProject(), $currentUser)) {
+            throw new ForbiddenException('Access denied to this project');
         }
 
         $comments = [];
 
-        // Formate les commentaires
         foreach ($ticket->getComments() as $comment) {
-
             $comments[] = $this->formatComment($comment);
         }
 
@@ -73,83 +52,64 @@ class TicketCommentController extends AbstractController
         );
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | CREATE COMMENT
-    |--------------------------------------------------------------------------
-    */
-
-    #[Route(
-        '/api/tickets/{id}/comments',
-        name: 'api_ticket_comment_create',
-        methods: ['POST']
-    )]
+    #[Route('/api/tickets/{id}/comments', name: 'api_ticket_comment_create', methods: ['POST'])]
     public function create(
         Ticket $ticket,
         Request $request,
         EntityManagerInterface $entityManager,
         ProjectSecurityService $projectSecurityService,
+        TicketActivityService $ticketActivityService,
         ApiResponseService $apiResponse,
         ValidatorInterface $validator,
         SerializerInterface $serializer
     ): JsonResponse {
-
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
 
-        // Vérifie authentification
         if (!$currentUser instanceof User) {
             throw new UnauthorizedException();
         }
 
-        // Vérifie appartenance projet
-        if (
-            !$projectSecurityService->isProjectMember(
-                $ticket->getProject(),
-                $currentUser
-            )
-        ) {
-            throw new ForbiddenException(
-                'Access denied to this project'
-            );
+        // Sécurité : seuls les membres peuvent commenter
+        if (!$projectSecurityService->isProjectMember($ticket->getProject(), $currentUser)) {
+            throw new ForbiddenException('Access denied to this project');
         }
 
-        // Désérialisation JSON -> DTO
         $dto = $serializer->deserialize(
             $request->getContent(),
             CreateTicketCommentDto::class,
             'json'
         );
 
-        // Validation DTO
         $errors = $validator->validate($dto);
 
         if (count($errors) > 0) {
-
             throw new ValidationException(
                 $apiResponse->formatValidationErrors($errors)
             );
         }
 
-        // Création commentaire
         $comment = new TicketComment();
-
         $comment->setContent($dto->content);
         $comment->setTicket($ticket);
         $comment->setCreatedBy($currentUser);
 
-        // Validation entity
         $entityErrors = $validator->validate($comment);
 
         if (count($entityErrors) > 0) {
-
             throw new ValidationException(
                 $apiResponse->formatValidationErrors($entityErrors)
             );
         }
 
-        // Sauvegarde BDD
         $entityManager->persist($comment);
+
+        // Historique : commentaire ajouté
+        $ticketActivityService->logCommentAdded(
+            $ticket,
+            $currentUser
+        );
+
         $entityManager->flush();
 
         return $apiResponse->success(
@@ -159,56 +119,44 @@ class TicketCommentController extends AbstractController
         );
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | DELETE COMMENT
-    |--------------------------------------------------------------------------
-    */
-
-    #[Route(
-        '/api/ticket-comments/{id}',
-        name: 'api_ticket_comment_delete',
-        methods: ['DELETE']
-    )]
+    #[Route('/api/ticket-comments/{id}', name: 'api_ticket_comment_delete', methods: ['DELETE'])]
     public function delete(
         TicketComment $comment,
         EntityManagerInterface $entityManager,
         ProjectSecurityService $projectSecurityService,
+        TicketActivityService $ticketActivityService,
         ApiResponseService $apiResponse
     ): JsonResponse {
-
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
 
-        // Vérifie authentification
         if (!$currentUser instanceof User) {
             throw new UnauthorizedException();
         }
 
         $project = $comment->getTicket()->getProject();
 
-        // Vérifie si user est auteur
-        $isAuthor =
-            $comment->getCreatedBy()?->getId()
-            === $currentUser->getId();
+        // Auteur du commentaire
+        $isAuthor = $comment->getCreatedBy()?->getId() === $currentUser->getId();
 
-        // Vérifie si user est project manager
-        $isProjectManager =
-            $projectSecurityService->hasProjectRole(
-                $project,
-                $currentUser,
-                'project_manager'
-            );
+        // Chef de projet
+        $isProjectManager = $projectSecurityService->hasProjectRole(
+            $project,
+            $currentUser,
+            'project_manager'
+        );
 
-        // Autorisation suppression
+        // Seul l’auteur ou le chef de projet peut supprimer
         if (!$isAuthor && !$isProjectManager) {
-
-            throw new ForbiddenException(
-                'You cannot delete this comment'
-            );
+            throw new ForbiddenException('You cannot delete this comment');
         }
 
-        // Suppression
+        // Historique avant suppression
+        $ticketActivityService->logCommentDeleted(
+            $comment->getTicket(),
+            $currentUser
+        );
+
         $entityManager->remove($comment);
         $entityManager->flush();
 
@@ -218,42 +166,21 @@ class TicketCommentController extends AbstractController
         );
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | FORMAT COMMENT
-    |--------------------------------------------------------------------------
-    */
-
-    private function formatComment(
-        TicketComment $comment
-    ): array {
+    private function formatComment(TicketComment $comment): array
+    {
         return [
             'id' => $comment->getId(),
-
             'content' => $comment->getContent(),
-
-            'createdAt' => $comment
-                ->getCreatedAt()
-                ?->format('Y-m-d H:i:s'),
+            'createdAt' => $comment->getCreatedAt()?->format('Y-m-d H:i:s'),
 
             'createdBy' => [
-                'id' => $comment
-                    ->getCreatedBy()
-                    ?->getId(),
-
-                'email' => $comment
-                    ->getCreatedBy()
-                    ?->getEmail(),
+                'id' => $comment->getCreatedBy()?->getId(),
+                'email' => $comment->getCreatedBy()?->getEmail(),
             ],
 
             'ticket' => [
-                'id' => $comment
-                    ->getTicket()
-                    ?->getId(),
-
-                'title' => $comment
-                    ->getTicket()
-                    ?->getTitle(),
+                'id' => $comment->getTicket()?->getId(),
+                'title' => $comment->getTicket()?->getTitle(),
             ],
         ];
     }

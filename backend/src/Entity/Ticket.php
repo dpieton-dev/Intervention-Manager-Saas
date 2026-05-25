@@ -76,6 +76,12 @@ class Ticket
     #[ORM\OneToMany(targetEntity: TicketComment::class, mappedBy: 'ticket')]
     private Collection $comments;
 
+    /**
+     * @var Collection<int, TicketActivity>
+     */
+    #[ORM\OneToMany(targetEntity: TicketActivity::class, mappedBy: 'ticket')]
+    private Collection $activities;
+
     public function __construct()
     {
         // Date de création automatique
@@ -87,6 +93,7 @@ class Ticket
         // Priorité par défaut
         $this->priority = 'medium';
         $this->comments = new ArrayCollection();
+        $this->activities = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -226,6 +233,36 @@ class Ticket
             // set the owning side to null (unless already changed)
             if ($comment->getTicket() === $this) {
                 $comment->setTicket(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, TicketActivity>
+     */
+    public function getActivities(): Collection
+    {
+        return $this->activities;
+    }
+
+    public function addActivity(TicketActivity $activity): static
+    {
+        if (!$this->activities->contains($activity)) {
+            $this->activities->add($activity);
+            $activity->setTicket($this);
+        }
+
+        return $this;
+    }
+
+    public function removeActivity(TicketActivity $activity): static
+    {
+        if ($this->activities->removeElement($activity)) {
+            // set the owning side to null (unless already changed)
+            if ($activity->getTicket() === $this) {
+                $activity->setTicket(null);
             }
         }
 
