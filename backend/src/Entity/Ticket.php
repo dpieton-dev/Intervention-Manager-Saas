@@ -82,6 +82,12 @@ class Ticket
     #[ORM\OneToMany(targetEntity: TicketActivity::class, mappedBy: 'ticket')]
     private Collection $activities;
 
+    /**
+     * @var Collection<int, TicketAttachment>
+     */
+    #[ORM\OneToMany(targetEntity: TicketAttachment::class, mappedBy: 'ticket')]
+    private Collection $attachments;
+
     public function __construct()
     {
         // Date de création automatique
@@ -94,6 +100,7 @@ class Ticket
         $this->priority = 'medium';
         $this->comments = new ArrayCollection();
         $this->activities = new ArrayCollection();
+        $this->attachments = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -263,6 +270,36 @@ class Ticket
             // set the owning side to null (unless already changed)
             if ($activity->getTicket() === $this) {
                 $activity->setTicket(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, TicketAttachment>
+     */
+    public function getAttachments(): Collection
+    {
+        return $this->attachments;
+    }
+
+    public function addAttachment(TicketAttachment $attachment): static
+    {
+        if (!$this->attachments->contains($attachment)) {
+            $this->attachments->add($attachment);
+            $attachment->setTicket($this);
+        }
+
+        return $this;
+    }
+
+    public function removeAttachment(TicketAttachment $attachment): static
+    {
+        if ($this->attachments->removeElement($attachment)) {
+            // set the owning side to null (unless already changed)
+            if ($attachment->getTicket() === $this) {
+                $attachment->setTicket(null);
             }
         }
 

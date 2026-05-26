@@ -67,6 +67,12 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\OneToMany(targetEntity: TicketActivity::class, mappedBy: 'createdBy')]
     private Collection $ticketActivities;
 
+    /**
+     * @var Collection<int, TicketAttachment>
+     */
+    #[ORM\OneToMany(targetEntity: TicketAttachment::class, mappedBy: 'createdBy')]
+    private Collection $ticketAttachments;
+
     public function __construct()
     {
         $this->createdAt = new DateTimeImmutable();
@@ -75,6 +81,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->projectMemberships = new ArrayCollection();
         $this->ticketComments = new ArrayCollection();
         $this->ticketActivities = new ArrayCollection();
+        $this->ticketAttachments = new ArrayCollection();
     }
     
     public function getId(): ?int
@@ -314,6 +321,36 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
             // set the owning side to null (unless already changed)
             if ($ticketActivity->getCreatedBy() === $this) {
                 $ticketActivity->setCreatedBy(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, TicketAttachment>
+     */
+    public function getTicketAttachments(): Collection
+    {
+        return $this->ticketAttachments;
+    }
+
+    public function addTicketAttachment(TicketAttachment $ticketAttachment): static
+    {
+        if (!$this->ticketAttachments->contains($ticketAttachment)) {
+            $this->ticketAttachments->add($ticketAttachment);
+            $ticketAttachment->setCreatedBy($this);
+        }
+
+        return $this;
+    }
+
+    public function removeTicketAttachment(TicketAttachment $ticketAttachment): static
+    {
+        if ($this->ticketAttachments->removeElement($ticketAttachment)) {
+            // set the owning side to null (unless already changed)
+            if ($ticketAttachment->getCreatedBy() === $this) {
+                $ticketAttachment->setCreatedBy(null);
             }
         }
 
