@@ -4,7 +4,7 @@ namespace App\Dto\Ticket;
 
 use Symfony\Component\Validator\Constraints as Assert;
 
-class UpdateTicket
+class UpdateTicketDto
 {
     #[Assert\Length(
         min: 3,

@@ -13,6 +13,7 @@ use App\Service\ApiResponseService;
 use App\Service\ProjectSecurityService;
 use App\Service\TicketActivityService;
 use Doctrine\ORM\EntityManagerInterface;
+use OpenApi\Attributes as OA;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -20,8 +21,38 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
+#[OA\Tag(name: 'Ticket Comments')]
 class TicketCommentController extends AbstractController
 {
+    #[OA\Get(
+        path: '/api/tickets/{id}/comments',
+        summary: 'List ticket comments',
+        description: 'Retrieve comments for a ticket.',
+        security: [['Bearer' => []]],
+        tags: ['Ticket Comments'],
+        parameters: [
+            new OA\Parameter(
+                name: 'id',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(type: 'integer', example: 1)
+            ),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Ticket comments retrieved successfully'
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'JWT token missing or invalid'
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Access denied to this project'
+            ),
+        ]
+    )]
     #[Route('/api/tickets/{id}/comments', name: 'api_ticket_comments', methods: ['GET'])]
     public function index(
         Ticket $ticket,
@@ -52,6 +83,52 @@ class TicketCommentController extends AbstractController
         );
     }
 
+    #[OA\Post(
+        path: '/api/tickets/{id}/comments',
+        summary: 'Create ticket comment',
+        description: 'Add a comment to a ticket.',
+        security: [['Bearer' => []]],
+        tags: ['Ticket Comments'],
+        parameters: [
+            new OA\Parameter(
+                name: 'id',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(type: 'integer', example: 1)
+            ),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['content'],
+                properties: [
+                    new OA\Property(
+                        property: 'content',
+                        type: 'string',
+                        example: 'Le bug a été reproduit.'
+                    ),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 201,
+                description: 'Comment created successfully'
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'User not authenticated'
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Access denied to this project'
+            ),
+            new OA\Response(
+                response: 422,
+                description: 'Validation failed'
+            ),
+        ]
+    )]
     #[Route('/api/tickets/{id}/comments', name: 'api_ticket_comment_create', methods: ['POST'])]
     public function create(
         Ticket $ticket,
@@ -119,6 +196,35 @@ class TicketCommentController extends AbstractController
         );
     }
 
+    #[OA\Delete(
+        path: '/api/ticket-comments/{id}',
+        summary: 'Delete ticket comment',
+        description: 'Delete a ticket comment.',
+        security: [['Bearer' => []]],
+        tags: ['Ticket Comments'],
+        parameters: [
+            new OA\Parameter(
+                name: 'id',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(type: 'integer', example: 1)
+            ),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Comment deleted successfully'
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'User not authenticated'
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'You cannot delete this comment'
+            ),
+        ]
+    )]
     #[Route('/api/ticket-comments/{id}', name: 'api_ticket_comment_delete', methods: ['DELETE'])]
     public function delete(
         TicketComment $comment,

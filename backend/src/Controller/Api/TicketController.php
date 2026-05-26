@@ -17,6 +17,7 @@ use App\Service\ApiResponseService;
 use App\Service\ProjectSecurityService;
 use App\Service\TicketActivityService;
 use Doctrine\ORM\EntityManagerInterface;
+use OpenApi\Attributes as OA;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -24,8 +25,58 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
+#[OA\Tag(name: 'Tickets')]
 class TicketController extends AbstractController
 {
+    #[OA\Get(
+        path: '/api/tickets',
+        summary: 'List tickets',
+        description: 'Retrieve paginated tickets with optional filters.',
+        security: [['Bearer' => []]],
+        tags: ['Tickets'],
+        parameters: [
+            new OA\Parameter(
+                name: 'page',
+                in: 'query',
+                required: false,
+                schema: new OA\Schema(type: 'integer', example: 1)
+            ),
+            new OA\Parameter(
+                name: 'limit',
+                in: 'query',
+                required: false,
+                schema: new OA\Schema(type: 'integer', example: 10)
+            ),
+            new OA\Parameter(
+                name: 'status',
+                in: 'query',
+                required: false,
+                schema: new OA\Schema(type: 'string', example: 'todo')
+            ),
+            new OA\Parameter(
+                name: 'priority',
+                in: 'query',
+                required: false,
+                schema: new OA\Schema(type: 'string', example: 'high')
+            ),
+            new OA\Parameter(
+                name: 'search',
+                in: 'query',
+                required: false,
+                schema: new OA\Schema(type: 'string', example: 'JWT')
+            ),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Tickets retrieved successfully'
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'JWT token missing or invalid'
+            ),
+        ]
+    )]
     #[Route('/api/tickets', name: 'api_tickets', methods: ['GET'])]
     public function index(
         Request $request,
@@ -61,6 +112,26 @@ class TicketController extends AbstractController
         ], 'Tickets retrieved successfully');
     }
 
+    #[OA\Get(
+        path: '/api/tickets/{id}',
+        summary: 'Show ticket',
+        description: 'Retrieve one ticket by id.',
+        security: [['Bearer' => []]],
+        tags: ['Tickets'],
+        parameters: [
+            new OA\Parameter(
+                name: 'id',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(type: 'integer', example: 1)
+            ),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Ticket retrieved successfully'),
+            new OA\Response(response: 401, description: 'JWT token missing or invalid'),
+            new OA\Response(response: 404, description: 'Ticket not found'),
+        ]
+    )]
     #[Route('/api/tickets/{id}', name: 'api_ticket_show', methods: ['GET'])]
     public function show(
         Ticket $ticket,
@@ -72,6 +143,32 @@ class TicketController extends AbstractController
         );
     }
 
+    #[OA\Post(
+        path: '/api/tickets',
+        summary: 'Create ticket',
+        description: 'Create a new ticket in a project.',
+        security: [['Bearer' => []]],
+        tags: ['Tickets'],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['title', 'description', 'priority', 'projectId'],
+                properties: [
+                    new OA\Property(property: 'title', type: 'string', example: 'Bug login'),
+                    new OA\Property(property: 'description', type: 'string', example: 'Erreur lors de la connexion utilisateur'),
+                    new OA\Property(property: 'priority', type: 'string', example: 'high'),
+                    new OA\Property(property: 'projectId', type: 'integer', example: 1),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 201, description: 'Ticket created successfully'),
+            new OA\Response(response: 401, description: 'User not authenticated'),
+            new OA\Response(response: 403, description: 'Access denied to this project'),
+            new OA\Response(response: 404, description: 'Project not found'),
+            new OA\Response(response: 422, description: 'Validation failed'),
+        ]
+    )]
     #[Route('/api/tickets', name: 'api_ticket_create', methods: ['POST'])]
     public function create(
         Request $request,
@@ -141,6 +238,38 @@ class TicketController extends AbstractController
         );
     }
 
+    #[OA\Put(
+        path: '/api/tickets/{id}',
+        summary: 'Update ticket',
+        description: 'Update ticket fields.',
+        security: [['Bearer' => []]],
+        tags: ['Tickets'],
+        parameters: [
+            new OA\Parameter(
+                name: 'id',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(type: 'integer', example: 1)
+            ),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                properties: [
+                    new OA\Property(property: 'title', type: 'string', example: 'Bug login corrigé'),
+                    new OA\Property(property: 'description', type: 'string', example: 'Correction du problème de connexion'),
+                    new OA\Property(property: 'status', type: 'string', example: 'in_progress'),
+                    new OA\Property(property: 'priority', type: 'string', example: 'medium'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Ticket updated successfully'),
+            new OA\Response(response: 401, description: 'User not authenticated'),
+            new OA\Response(response: 403, description: 'Access denied to this project'),
+            new OA\Response(response: 422, description: 'Validation failed'),
+        ]
+    )]
     #[Route('/api/tickets/{id}', name: 'api_ticket_update', methods: ['PUT'])]
     public function update(
         Ticket $ticket,
@@ -203,6 +332,26 @@ class TicketController extends AbstractController
         );
     }
 
+    #[OA\Delete(
+        path: '/api/tickets/{id}',
+        summary: 'Delete ticket',
+        description: 'Delete a ticket. Only project managers can delete tickets.',
+        security: [['Bearer' => []]],
+        tags: ['Tickets'],
+        parameters: [
+            new OA\Parameter(
+                name: 'id',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(type: 'integer', example: 1)
+            ),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Ticket deleted successfully'),
+            new OA\Response(response: 401, description: 'User not authenticated'),
+            new OA\Response(response: 403, description: 'Only project managers can delete tickets'),
+        ]
+    )]
     #[Route('/api/tickets/{id}', name: 'api_ticket_delete', methods: ['DELETE'])]
     public function delete(
         Ticket $ticket,
@@ -234,6 +383,37 @@ class TicketController extends AbstractController
         return $apiResponse->success(null, 'Ticket deleted successfully');
     }
 
+    #[OA\Patch(
+        path: '/api/tickets/{id}/assign',
+        summary: 'Assign ticket',
+        description: 'Assign a ticket to a user. Only project managers can assign tickets.',
+        security: [['Bearer' => []]],
+        tags: ['Tickets'],
+        parameters: [
+            new OA\Parameter(
+                name: 'id',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(type: 'integer', example: 1)
+            ),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['assignedTo'],
+                properties: [
+                    new OA\Property(property: 'assignedTo', type: 'integer', example: 2),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Ticket assigned successfully'),
+            new OA\Response(response: 401, description: 'User not authenticated'),
+            new OA\Response(response: 403, description: 'Only project managers can assign tickets'),
+            new OA\Response(response: 404, description: 'User not found'),
+            new OA\Response(response: 422, description: 'Validation failed'),
+        ]
+    )]
     #[Route('/api/tickets/{id}/assign', name: 'api_ticket_assign', methods: ['PATCH'])]
     public function assign(
         Ticket $ticket,
@@ -297,6 +477,41 @@ class TicketController extends AbstractController
         );
     }
 
+    #[OA\Patch(
+        path: '/api/tickets/{id}/status',
+        summary: 'Update ticket status',
+        description: 'Move a ticket in the Kanban workflow.',
+        security: [['Bearer' => []]],
+        tags: ['Tickets'],
+        parameters: [
+            new OA\Parameter(
+                name: 'id',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(type: 'integer', example: 1)
+            ),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['status'],
+                properties: [
+                    new OA\Property(
+                        property: 'status',
+                        type: 'string',
+                        example: 'in_progress',
+                        enum: ['todo', 'in_progress', 'testing', 'delivery_recette', 'done']
+                    ),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Ticket status updated successfully'),
+            new OA\Response(response: 401, description: 'User not authenticated'),
+            new OA\Response(response: 403, description: 'Access denied to this project'),
+            new OA\Response(response: 422, description: 'Validation failed'),
+        ]
+    )]
     #[Route('/api/tickets/{id}/status', name: 'api_ticket_status', methods: ['PATCH'])]
     public function updateStatus(
         Ticket $ticket,
@@ -371,6 +586,26 @@ class TicketController extends AbstractController
         );
     }
 
+    #[OA\Get(
+        path: '/api/tickets/{id}/activities',
+        summary: 'List ticket activities',
+        description: 'Retrieve activity history for a ticket.',
+        security: [['Bearer' => []]],
+        tags: ['Tickets'],
+        parameters: [
+            new OA\Parameter(
+                name: 'id',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(type: 'integer', example: 1)
+            ),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Ticket activities retrieved successfully'),
+            new OA\Response(response: 401, description: 'User not authenticated'),
+            new OA\Response(response: 403, description: 'Access denied to this project'),
+        ]
+    )]
     #[Route('/api/tickets/{id}/activities', name: 'api_ticket_activities', methods: ['GET'])]
     public function activities(
         Ticket $ticket,

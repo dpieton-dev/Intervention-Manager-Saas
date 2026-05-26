@@ -13,6 +13,7 @@ use App\Service\ApiResponseService;
 use App\Service\ProjectSecurityService;
 use App\Service\TicketActivityService;
 use Doctrine\ORM\EntityManagerInterface;
+use OpenApi\Attributes as OA;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\File\Exception\FileException;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -20,6 +21,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\String\Slugger\SluggerInterface;
 
+#[OA\Tag(name: 'Ticket Attachments')]
 class TicketAttachmentController extends AbstractController
 {
     /*
@@ -28,6 +30,26 @@ class TicketAttachmentController extends AbstractController
     |--------------------------------------------------------------------------
     */
 
+    #[OA\Get(
+        path: '/api/tickets/{id}/attachments',
+        summary: 'List ticket attachments',
+        description: 'Retrieve attachments for a ticket.',
+        security: [['Bearer' => []]],
+        tags: ['Ticket Attachments'],
+        parameters: [
+            new OA\Parameter(
+                name: 'id',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(type: 'integer', example: 1)
+            ),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Attachments retrieved successfully'),
+            new OA\Response(response: 401, description: 'User not authenticated'),
+            new OA\Response(response: 403, description: 'Access denied to this project'),
+        ]
+    )]
     #[Route(
         '/api/tickets/{id}/attachments',
         name: 'api_ticket_attachments',
@@ -79,6 +101,44 @@ class TicketAttachmentController extends AbstractController
     |--------------------------------------------------------------------------
     */
 
+    #[OA\Post(
+        path: '/api/tickets/{id}/attachments',
+        summary: 'Upload ticket attachment',
+        description: 'Upload an attachment for a ticket. Allowed files: JPG, PNG, WEBP, PDF. Max size: 5MB.',
+        security: [['Bearer' => []]],
+        tags: ['Ticket Attachments'],
+        parameters: [
+            new OA\Parameter(
+                name: 'id',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(type: 'integer', example: 1)
+            ),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\MediaType(
+                mediaType: 'multipart/form-data',
+                schema: new OA\Schema(
+                    required: ['file'],
+                    properties: [
+                        new OA\Property(
+                            property: 'file',
+                            type: 'string',
+                            format: 'binary',
+                            description: 'Attachment file'
+                        ),
+                    ]
+                )
+            )
+        ),
+        responses: [
+            new OA\Response(response: 201, description: 'Attachment uploaded successfully'),
+            new OA\Response(response: 401, description: 'User not authenticated'),
+            new OA\Response(response: 403, description: 'Access denied to this project'),
+            new OA\Response(response: 422, description: 'Validation failed'),
+        ]
+    )]
     #[Route(
         '/api/tickets/{id}/attachments',
         name: 'api_ticket_attachment_upload',
@@ -190,6 +250,27 @@ class TicketAttachmentController extends AbstractController
     |--------------------------------------------------------------------------
     */
 
+    #[OA\Delete(
+        path: '/api/ticket-attachments/{id}',
+        summary: 'Delete ticket attachment',
+        description: 'Delete an attachment. Only the uploader or a project manager can delete it.',
+        security: [['Bearer' => []]],
+        tags: ['Ticket Attachments'],
+        parameters: [
+            new OA\Parameter(
+                name: 'id',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(type: 'integer', example: 1)
+            ),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Attachment deleted successfully'),
+            new OA\Response(response: 401, description: 'User not authenticated'),
+            new OA\Response(response: 403, description: 'You cannot delete this attachment'),
+            new OA\Response(response: 404, description: 'Attachment not found'),
+        ]
+    )]
     #[Route(
         '/api/ticket-attachments/{id}',
         name: 'api_ticket_attachment_delete',

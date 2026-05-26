@@ -13,6 +13,7 @@ use App\Exception\ValidationException;
 use App\Service\ApiResponseService;
 use App\Service\ProjectSecurityService;
 use Doctrine\ORM\EntityManagerInterface;
+use OpenApi\Attributes as OA;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -20,8 +21,29 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
+#[OA\Tag(name: 'Project Roles')]
 class ProjectRoleController extends AbstractController
 {
+    #[OA\Get(
+        path: '/api/projects/{id}/roles',
+        summary: 'List project roles',
+        description: 'Retrieve roles available for a project.',
+        security: [['Bearer' => []]],
+        tags: ['Project Roles'],
+        parameters: [
+            new OA\Parameter(
+                name: 'id',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(type: 'integer', example: 1)
+            ),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Project roles retrieved successfully'),
+            new OA\Response(response: 401, description: 'User not authenticated'),
+            new OA\Response(response: 403, description: 'Access denied to this project'),
+        ]
+    )]
     #[Route('/api/projects/{id}/roles', name: 'api_project_roles', methods: ['GET'])]
     public function index(Project $project, ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse): JsonResponse 
     {
@@ -50,6 +72,38 @@ class ProjectRoleController extends AbstractController
         );
     }
 
+    #[OA\Post(
+        path: '/api/projects/{id}/roles',
+        summary: 'Create project role',
+        description: 'Create a dynamic role for a project. Only project managers can create roles.',
+        security: [['Bearer' => []]],
+        tags: ['Project Roles'],
+        parameters: [
+            new OA\Parameter(
+                name: 'id',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(type: 'integer', example: 1)
+            ),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['name', 'code'],
+                properties: [
+                    new OA\Property(property: 'name', type: 'string', example: 'Développeur Backend'),
+                    new OA\Property(property: 'code', type: 'string', example: 'backend_developer'),
+                    new OA\Property(property: 'description', type: 'string', example: 'Responsable du backend Symfony'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 201, description: 'Project role created successfully'),
+            new OA\Response(response: 401, description: 'User not authenticated'),
+            new OA\Response(response: 403, description: 'Only project managers can create roles'),
+            new OA\Response(response: 422, description: 'Validation failed'),
+        ]
+    )]
     #[Route('/api/projects/{id}/roles', name: 'api_project_role_create', methods: ['POST'])]
     public function create(Project $project, Request $request, EntityManagerInterface $entityManager, ProjectSecurityService $projectSecurityService,
         ApiResponseService $apiResponse, ValidatorInterface $validator, SerializerInterface $serializer): JsonResponse 
@@ -91,6 +145,37 @@ class ProjectRoleController extends AbstractController
         );
     }
 
+    #[OA\Put(
+        path: '/api/project-roles/{id}',
+        summary: 'Update project role',
+        description: 'Update a dynamic project role. Only project managers can manage roles.',
+        security: [['Bearer' => []]],
+        tags: ['Project Roles'],
+        parameters: [
+            new OA\Parameter(
+                name: 'id',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(type: 'integer', example: 1)
+            ),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                properties: [
+                    new OA\Property(property: 'name', type: 'string', example: 'Développeur Backend Symfony'),
+                    new OA\Property(property: 'code', type: 'string', example: 'backend_developer'),
+                    new OA\Property(property: 'description', type: 'string', example: 'Développement API Symfony'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Project role updated successfully'),
+            new OA\Response(response: 401, description: 'User not authenticated'),
+            new OA\Response(response: 403, description: 'Only project managers can manage roles'),
+            new OA\Response(response: 422, description: 'Validation failed'),
+        ]
+    )]
     #[Route('/api/project-roles/{id}', name: 'api_project_role_update', methods: ['PUT'])]
     public function update(ProjectRole $role, Request $request, EntityManagerInterface $entityManager, ProjectSecurityService $projectSecurityService,
         ApiResponseService $apiResponse, ValidatorInterface $validator, SerializerInterface $serializer): JsonResponse 
@@ -140,6 +225,27 @@ class ProjectRoleController extends AbstractController
         );
     }
 
+    #[OA\Delete(
+        path: '/api/project-roles/{id}',
+        summary: 'Delete project role',
+        description: 'Delete a dynamic project role. Only project managers can manage roles.',
+        security: [['Bearer' => []]],
+        tags: ['Project Roles'],
+        parameters: [
+            new OA\Parameter(
+                name: 'id',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(type: 'integer', example: 1)
+            ),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Project role deleted successfully'),
+            new OA\Response(response: 401, description: 'User not authenticated'),
+            new OA\Response(response: 403, description: 'Only project managers can manage roles'),
+            new OA\Response(response: 404, description: 'Project role not found'),
+        ]
+    )]
     #[Route('/api/project-roles/{id}', name: 'api_project_role_delete', methods: ['DELETE'])]
     public function delete(ProjectRole $role,EntityManagerInterface $entityManager,ProjectSecurityService $projectSecurityService,ApiResponseService $apiResponse): JsonResponse 
     {

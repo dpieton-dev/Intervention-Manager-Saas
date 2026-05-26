@@ -17,6 +17,7 @@ use App\Repository\UserRepository;
 use App\Service\ApiResponseService;
 use App\Service\ProjectSecurityService;
 use Doctrine\ORM\EntityManagerInterface;
+use OpenApi\Attributes as OA;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -24,8 +25,46 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
+#[OA\Tag(name: 'Projects')]
 class ProjectController extends AbstractController
 {
+    #[OA\Get(
+        path: '/api/projects',
+        summary: 'List projects',
+        description: 'Retrieve paginated projects available for the authenticated user.',
+        security: [['Bearer' => []]],
+        tags: ['Projects'],
+        parameters: [
+            new OA\Parameter(
+                name: 'page',
+                in: 'query',
+                required: false,
+                schema: new OA\Schema(type: 'integer', example: 1)
+            ),
+            new OA\Parameter(
+                name: 'limit',
+                in: 'query',
+                required: false,
+                schema: new OA\Schema(type: 'integer', example: 10)
+            ),
+            new OA\Parameter(
+                name: 'status',
+                in: 'query',
+                required: false,
+                schema: new OA\Schema(type: 'string', example: 'active')
+            ),
+            new OA\Parameter(
+                name: 'search',
+                in: 'query',
+                required: false,
+                schema: new OA\Schema(type: 'string', example: 'SaaS')
+            ),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Projects retrieved successfully'),
+            new OA\Response(response: 401, description: 'User not authenticated'),
+        ]
+    )]
     #[Route('/api/projects', name: 'api_projects', methods: ['GET'])]
     public function index(Request $request, ProjectRepository $projectRepository, ApiResponseService $apiResponse): JsonResponse 
     {
@@ -85,6 +124,27 @@ class ProjectController extends AbstractController
         ], 'Projects retrieved successfully');
     }
 
+    #[OA\Get(
+        path: '/api/projects/{id}',
+        summary: 'Show project',
+        description: 'Retrieve one project by id.',
+        security: [['Bearer' => []]],
+        tags: ['Projects'],
+        parameters: [
+            new OA\Parameter(
+                name: 'id',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(type: 'integer', example: 1)
+            ),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Project retrieved successfully'),
+            new OA\Response(response: 401, description: 'User not authenticated'),
+            new OA\Response(response: 403, description: 'Access denied to this project'),
+            new OA\Response(response: 404, description: 'Project not found'),
+        ]
+    )]
     #[Route('/api/projects/{id}', name: 'api_project_show', methods: ['GET'])]
     public function show(Project $project, ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse): JsonResponse 
     {
@@ -108,6 +168,36 @@ class ProjectController extends AbstractController
         );
     }
 
+    #[OA\Post(
+        path: '/api/projects',
+        summary: 'Create project',
+        description: 'Create a new project.',
+        security: [['Bearer' => []]],
+        tags: ['Projects'],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['name', 'description'],
+                properties: [
+                    new OA\Property(
+                        property: 'name',
+                        type: 'string',
+                        example: 'Intervention Manager SaaS'
+                    ),
+                    new OA\Property(
+                        property: 'description',
+                        type: 'string',
+                        example: 'Projet SaaS Symfony Angular'
+                    ),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 201, description: 'Project created successfully'),
+            new OA\Response(response: 401, description: 'User not authenticated'),
+            new OA\Response(response: 422, description: 'Validation failed'),
+        ]
+    )]
     #[Route('/api/projects', name: 'api_project_create', methods: ['POST'])]
     public function create(Request $request, EntityManagerInterface $entityManager, ApiResponseService $apiResponse,ValidatorInterface $validator, SerializerInterface $serializer): JsonResponse 
     {
@@ -152,6 +242,49 @@ class ProjectController extends AbstractController
         );
     }
 
+    #[OA\Put(
+        path: '/api/projects/{id}',
+        summary: 'Update project',
+        description: 'Update an existing project.',
+        security: [['Bearer' => []]],
+        tags: ['Projects'],
+        parameters: [
+            new OA\Parameter(
+                name: 'id',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(type: 'integer', example: 1)
+            ),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                properties: [
+                    new OA\Property(
+                        property: 'name',
+                        type: 'string',
+                        example: 'Nouveau nom projet'
+                    ),
+                    new OA\Property(
+                        property: 'description',
+                        type: 'string',
+                        example: 'Nouvelle description'
+                    ),
+                    new OA\Property(
+                        property: 'status',
+                        type: 'string',
+                        example: 'active'
+                    ),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Project updated successfully'),
+            new OA\Response(response: 401, description: 'User not authenticated'),
+            new OA\Response(response: 403, description: 'Access denied'),
+            new OA\Response(response: 422, description: 'Validation failed'),
+        ]
+    )]
     #[Route('/api/projects/{id}', name: 'api_project_update', methods: ['PUT'])]
     public function update(Project $project, Request $request,EntityManagerInterface $entityManager,
         ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse, ValidatorInterface $validator,SerializerInterface $serializer): JsonResponse 
@@ -209,6 +342,26 @@ class ProjectController extends AbstractController
         );
     }
 
+    #[OA\Delete(
+        path: '/api/projects/{id}',
+        summary: 'Delete project',
+        description: 'Delete a project.',
+        security: [['Bearer' => []]],
+        tags: ['Projects'],
+        parameters: [
+            new OA\Parameter(
+                name: 'id',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(type: 'integer', example: 1)
+            ),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Project deleted successfully'),
+            new OA\Response(response: 401, description: 'User not authenticated'),
+            new OA\Response(response: 403, description: 'Access denied'),
+        ]
+    )]
     #[Route('/api/projects/{id}', name: 'api_project_delete', methods: ['DELETE'])]
     public function delete(Project $project, EntityManagerInterface $entityManager, ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse): JsonResponse 
     {
@@ -233,6 +386,27 @@ class ProjectController extends AbstractController
         );
     }
 
+    #[OA\Get(
+        path: '/api/projects/{id}/board',
+        summary: 'Project Kanban board',
+        description: 'Retrieve project tickets grouped by Kanban status.',
+        security: [['Bearer' => []]],
+        tags: ['Projects'],
+        parameters: [
+            new OA\Parameter(
+                name: 'id',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(type: 'integer', example: 1)
+            ),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Project board retrieved successfully'),
+            new OA\Response(response: 401, description: 'User not authenticated'),
+            new OA\Response(response: 403, description: 'Access denied to this project'),
+            new OA\Response(response: 404, description: 'Project not found'),
+        ]
+    )]
     #[Route('/api/projects/{id}/board', name: 'api_project_board', methods: ['GET'])]
     public function board(Project $project, ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse): JsonResponse 
     {
@@ -287,6 +461,38 @@ class ProjectController extends AbstractController
         ], 'Project board retrieved successfully');
     }
 
+    #[OA\Post(
+        path: '/api/projects/{id}/members',
+        summary: 'Add project member',
+        description: 'Add a user to a project with a dynamic project role.',
+        security: [['Bearer' => []]],
+        tags: ['Projects'],
+        parameters: [
+            new OA\Parameter(
+                name: 'id',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(type: 'integer', example: 1)
+            ),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['userId', 'projectRoleId'],
+                properties: [
+                    new OA\Property(property: 'userId', type: 'integer', example: 2),
+                    new OA\Property(property: 'projectRoleId', type: 'integer', example: 1),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 201, description: 'Member added successfully'),
+            new OA\Response(response: 401, description: 'User not authenticated'),
+            new OA\Response(response: 403, description: 'Only project managers can add members'),
+            new OA\Response(response: 404, description: 'User or role not found'),
+            new OA\Response(response: 422, description: 'Validation failed'),
+        ]
+    )]
     #[Route('/api/projects/{id}/members', name: 'api_project_add_member', methods: ['POST'])]
     public function addMember(Project $project,Request $request,UserRepository $userRepository,ProjectRoleRepository $projectRoleRepository,
         EntityManagerInterface $entityManager,ProjectSecurityService $projectSecurityService,ApiResponseService $apiResponse): JsonResponse 
