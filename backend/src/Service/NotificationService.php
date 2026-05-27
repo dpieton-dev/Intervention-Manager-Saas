@@ -4,23 +4,22 @@ namespace App\Service;
 
 use App\Entity\Notification;
 use App\Entity\User;
+use App\Service\RealtimeService;
 use Doctrine\ORM\EntityManagerInterface;
 
 class NotificationService
 {
     public function __construct(
-        private EntityManagerInterface $entityManager
+        private EntityManagerInterface $entityManager,
+        private RealtimeService $realtimeService
     ) {
     }
 
     /**
      * Crée une notification pour un utilisateur.
      */
-    public function notify(
-        User $user,
-        string $type,
-        string $message
-    ): void {
+    public function notify(User $user, string $type, string $message): void 
+    {
         $notification = new Notification();
 
         $notification->setUser($user);
@@ -29,15 +28,23 @@ class NotificationService
         $notification->setIsRead(false);
 
         $this->entityManager->persist($notification);
+        $this->realtimeService->notification(
+            $user->getId(),
+            [
+                'type' => $type,
+                'message' => $message,
+                'createdAt' => $notification
+                    ->getCreatedAt()
+                    ?->format('Y-m-d H:i:s'),
+            ]
+        );
     }
 
     /**
      * Notification quand un ticket est assigné.
      */
-    public function ticketAssigned(
-        User $assignedUser,
-        string $ticketTitle
-    ): void {
+    public function ticketAssigned(User $assignedUser,string $ticketTitle): void 
+    {
         $this->notify(
             $assignedUser,
             'ticket_assigned',

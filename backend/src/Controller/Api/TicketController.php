@@ -16,6 +16,7 @@ use App\Repository\UserRepository;
 use App\Service\ApiResponseService;
 use App\Service\ProjectSecurityService;
 use App\Service\TicketActivityService;
+use App\Service\NotificationService;
 use Doctrine\ORM\EntityManagerInterface;
 use OpenApi\Attributes as OA;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -422,7 +423,8 @@ class TicketController extends AbstractController
         EntityManagerInterface $entityManager,
         ProjectSecurityService $projectSecurityService,
         TicketActivityService $ticketActivityService,
-        ApiResponseService $apiResponse
+        ApiResponseService $apiResponse,
+        NotificationService $notificationService
     ): JsonResponse {
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
@@ -467,6 +469,11 @@ class TicketController extends AbstractController
             $ticket,
             $currentUser,
             $assignedUser
+        );
+
+        $notificationService->ticketAssigned(
+            $assignedUser,
+            $ticket->getTitle()
         );
 
         $entityManager->flush();
