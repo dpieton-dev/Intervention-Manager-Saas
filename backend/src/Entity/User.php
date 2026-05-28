@@ -79,6 +79,12 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\OneToMany(targetEntity: Notification::class, mappedBy: 'user')]
     private Collection $notifications;
 
+    /**
+     * @var Collection<int, ProjectPresence>
+     */
+    #[ORM\OneToMany(targetEntity: ProjectPresence::class, mappedBy: 'user')]
+    private Collection $projectPresences;
+
     public function __construct()
     {
         $this->createdAt = new DateTimeImmutable();
@@ -89,6 +95,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->ticketActivities = new ArrayCollection();
         $this->ticketAttachments = new ArrayCollection();
         $this->notifications = new ArrayCollection();
+        $this->projectPresences = new ArrayCollection();
     }
     
     public function getId(): ?int
@@ -388,6 +395,36 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
             // set the owning side to null (unless already changed)
             if ($notification->getUser() === $this) {
                 $notification->setUser(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, ProjectPresence>
+     */
+    public function getProjectPresences(): Collection
+    {
+        return $this->projectPresences;
+    }
+
+    public function addProjectPresence(ProjectPresence $projectPresence): static
+    {
+        if (!$this->projectPresences->contains($projectPresence)) {
+            $this->projectPresences->add($projectPresence);
+            $projectPresence->setUser($this);
+        }
+
+        return $this;
+    }
+
+    public function removeProjectPresence(ProjectPresence $projectPresence): static
+    {
+        if ($this->projectPresences->removeElement($projectPresence)) {
+            // set the owning side to null (unless already changed)
+            if ($projectPresence->getUser() === $this) {
+                $projectPresence->setUser(null);
             }
         }
 

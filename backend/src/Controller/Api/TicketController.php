@@ -17,6 +17,7 @@ use App\Service\ApiResponseService;
 use App\Service\ProjectSecurityService;
 use App\Service\TicketActivityService;
 use App\Service\NotificationService;
+use App\Service\RealtimeService;
 use Doctrine\ORM\EntityManagerInterface;
 use OpenApi\Attributes as OA;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -526,7 +527,8 @@ class TicketController extends AbstractController
         EntityManagerInterface $entityManager,
         ProjectSecurityService $projectSecurityService,
         TicketActivityService $ticketActivityService,
-        ApiResponseService $apiResponse
+        ApiResponseService $apiResponse,
+        RealtimeService $realtimeService
     ): JsonResponse {
         /** @var User|null $user */
         $user = $this->getUser();
@@ -586,6 +588,17 @@ class TicketController extends AbstractController
         );
 
         $entityManager->flush();
+
+        $realtimeService->project(
+            $ticket->getProject()->getId(),
+            [
+                'type' => 'ticket_status_changed',
+                'ticketId' => $ticket->getId(),
+                'oldStatus' => $oldStatus,
+                'newStatus' => $data['status'],
+                'ticket' => $this->formatTicket($ticket),
+            ]
+        );
 
         return $apiResponse->success(
             $this->formatTicket($ticket),

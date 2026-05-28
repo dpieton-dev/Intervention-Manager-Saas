@@ -152,6 +152,55 @@ class NotificationController extends AbstractController
         );
     }
 
+    #[OA\Get(
+        path: '/api/notifications/unread-count',
+        summary: 'Unread notifications count',
+        description: 'Retrieve unread notifications count.',
+        security: [['Bearer' => []]],
+        tags: ['Notifications'],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Unread count retrieved successfully'
+            ),
+        ]
+    )]
+    #[Route(
+        '/api/notifications/unread-count',
+        name: 'api_notifications_unread_count',
+        methods: ['GET']
+    )]
+    public function unreadCount(
+        ApiResponseService $apiResponse
+    ): JsonResponse {
+
+        /** @var User|null $currentUser */
+        $currentUser = $this->getUser();
+
+        if (!$currentUser instanceof User) {
+            throw new UnauthorizedException();
+        }
+
+        $count = 0;
+
+        foreach (
+            $currentUser->getNotifications()
+            as $notification
+        ) {
+
+            if (!$notification->isRead()) {
+                $count++;
+            }
+        }
+
+        return $apiResponse->success(
+            [
+                'unreadCount' => $count,
+            ],
+            'Unread count retrieved successfully'
+        );
+    }
+
     /*
     |--------------------------------------------------------------------------
     | FORMAT NOTIFICATION
@@ -176,4 +225,5 @@ class NotificationController extends AbstractController
                 ?->format('Y-m-d H:i:s'),
         ];
     }
+
 }

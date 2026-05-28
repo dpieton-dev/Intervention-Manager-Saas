@@ -5,12 +5,14 @@ namespace App\Service;
 use App\Entity\Ticket;
 use App\Entity\TicketActivity;
 use App\Entity\User;
+use App\Service\RealtimeService;
 use Doctrine\ORM\EntityManagerInterface;
 
 class TicketActivityService
 {
     public function __construct(
-        private EntityManagerInterface $entityManager
+        private EntityManagerInterface $entityManager,
+        private RealtimeService $realtimeService
     ) {
     }
 
@@ -28,16 +30,28 @@ class TicketActivityService
     ): void {
 
         $activity = new TicketActivity();
-
         $activity->setTicket($ticket);
-
         $activity->setCreatedBy($user);
-
         $activity->setAction($action);
-
         $activity->setDescription($description);
 
         $this->entityManager->persist($activity);
+
+        $this->realtimeService->ticket(
+            $ticket->getId(),
+            [
+                'type' => 'activity_created',
+                'activity' => [
+                    'action' => $action,
+                    'description' => $description,
+                    'createdAt' => $activity->getCreatedAt()?->format('Y-m-d H:i:s'),
+                    'createdBy' => [
+                        'id' => $user->getId(),
+                        'email' => $user->getEmail(),
+                    ],
+                ],
+            ]
+        );
     }
 
     /*

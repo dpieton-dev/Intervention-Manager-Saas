@@ -12,6 +12,7 @@ use App\Exception\ValidationException;
 use App\Service\ApiResponseService;
 use App\Service\ProjectSecurityService;
 use App\Service\TicketActivityService;
+use App\Service\RealtimeService;
 use Doctrine\ORM\EntityManagerInterface;
 use OpenApi\Attributes as OA;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -138,7 +139,8 @@ class TicketCommentController extends AbstractController
         TicketActivityService $ticketActivityService,
         ApiResponseService $apiResponse,
         ValidatorInterface $validator,
-        SerializerInterface $serializer
+        SerializerInterface $serializer,
+        RealtimeService $realtimeService
     ): JsonResponse {
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
@@ -188,6 +190,31 @@ class TicketCommentController extends AbstractController
         );
 
         $entityManager->flush();
+
+        /*
+        |--------------------------------------------------------------------------
+        | REALTIME EVENT
+        |--------------------------------------------------------------------------
+        */
+
+        $realtimeService->ticket(
+            $ticket->getId(),
+            [
+                'type' => 'comment_created',
+                'ticketId' => $ticket->getId(),
+                'comment' => [
+                    'id' => $comment->getId(),
+                    'content' => $comment->getContent(),
+                    'createdAt' => $comment
+                        ->getCreatedAt()
+                        ?->format('Y-m-d H:i:s'),
+                    'createdBy' => [
+                        'id' => $currentUser->getId(),
+                        'email' => $currentUser->getEmail(),
+                    ],
+                ],
+            ]
+        );
 
         return $apiResponse->success(
             $this->formatComment($comment),

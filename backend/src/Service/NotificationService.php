@@ -28,14 +28,33 @@ class NotificationService
         $notification->setIsRead(false);
 
         $this->entityManager->persist($notification);
+
+        $unreadCount = 0;
+
+        foreach (
+            $user->getNotifications()
+            as $existingNotification
+        ) {
+
+            if (!$existingNotification->isRead()) {
+                $unreadCount++;
+            }
+        }
+
+        $unreadCount++;
+
         $this->realtimeService->notification(
             $user->getId(),
             [
                 'type' => $type,
+
                 'message' => $message,
+
                 'createdAt' => $notification
                     ->getCreatedAt()
                     ?->format('Y-m-d H:i:s'),
+
+                'unreadCount' => $unreadCount,
             ]
         );
     }

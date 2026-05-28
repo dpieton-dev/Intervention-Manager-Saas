@@ -71,6 +71,12 @@ class Project
     #[ORM\OneToMany(targetEntity: ProjectRole::class, mappedBy: 'project')]
     private Collection $roles;
 
+    /**
+     * @var Collection<int, ProjectPresence>
+     */
+    #[ORM\OneToMany(targetEntity: ProjectPresence::class, mappedBy: 'project')]
+    private Collection $presences;
+
     public function __construct()
     {
         $this->createdAt = new DateTimeImmutable();
@@ -79,6 +85,7 @@ class Project
         $this->tickets = new ArrayCollection();
         $this->members = new ArrayCollection();
         $this->roles = new ArrayCollection();
+        $this->presences = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -263,6 +270,36 @@ class Project
             ->atPath('endDate')
             ->addViolation();
         }
+    }
+
+    /**
+     * @return Collection<int, ProjectPresence>
+     */
+    public function getPresences(): Collection
+    {
+        return $this->presences;
+    }
+
+    public function addPresence(ProjectPresence $presence): static
+    {
+        if (!$this->presences->contains($presence)) {
+            $this->presences->add($presence);
+            $presence->setProject($this);
+        }
+
+        return $this;
+    }
+
+    public function removePresence(ProjectPresence $presence): static
+    {
+        if ($this->presences->removeElement($presence)) {
+            // set the owning side to null (unless already changed)
+            if ($presence->getProject() === $this) {
+                $presence->setProject(null);
+            }
+        }
+
+        return $this;
     }
 }
 
