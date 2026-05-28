@@ -13,6 +13,7 @@ use App\Service\ApiResponseService;
 use App\Service\ProjectSecurityService;
 use App\Service\TicketActivityService;
 use App\Service\RealtimeService;
+use App\Service\NotificationService;
 use Doctrine\ORM\EntityManagerInterface;
 use OpenApi\Attributes as OA;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -140,7 +141,8 @@ class TicketCommentController extends AbstractController
         ApiResponseService $apiResponse,
         ValidatorInterface $validator,
         SerializerInterface $serializer,
-        RealtimeService $realtimeService
+        RealtimeService $realtimeService,
+        NotificationService $notificationService
     ): JsonResponse {
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
@@ -190,6 +192,26 @@ class TicketCommentController extends AbstractController
         );
 
         $entityManager->flush();
+
+        /*
+        |--------------------------------------------------------------------------
+        | NOTIFICATION
+        |--------------------------------------------------------------------------
+        */
+
+        // Notification utilisateur assigné
+        if (
+            $ticket->getAssignedTo()
+            &&
+            $ticket->getAssignedTo()->getId()
+            !== $currentUser->getId()
+        ) {
+
+            $notificationService->commentAdded(
+                $ticket->getAssignedTo(),
+                $ticket->getTitle()
+            );
+        }
 
         /*
         |--------------------------------------------------------------------------

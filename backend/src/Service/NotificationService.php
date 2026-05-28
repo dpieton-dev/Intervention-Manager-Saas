@@ -18,7 +18,7 @@ class NotificationService
     /**
      * Crée une notification pour un utilisateur.
      */
-    public function notify(User $user, string $type, string $message): void 
+    public function notify(User $user, string $type, string $message, string $level = 'info'): void 
     {
         $notification = new Notification();
 
@@ -50,6 +50,8 @@ class NotificationService
 
                 'message' => $message,
 
+                'level' => $level,
+
                 'createdAt' => $notification
                     ->getCreatedAt()
                     ?->format('Y-m-d H:i:s'),
@@ -67,7 +69,56 @@ class NotificationService
         $this->notify(
             $assignedUser,
             'ticket_assigned',
-            sprintf('Ticket assigned to you: "%s"', $ticketTitle)
+            sprintf('Ticket assigned to you: "%s"', $ticketTitle),
+            'success'
         );
+    }
+
+    public function commentAdded(
+        User $user,
+        string $ticketTitle
+    ): void {
+        $this->notify(
+            $user,
+            'comment_added',
+            sprintf('New comment on ticket: "%s"', $ticketTitle),
+            'info'
+        );
+    }
+
+    public function statusChanged(
+        User $user,
+        string $ticketTitle,
+        string $oldStatus,
+        string $newStatus
+    ): void {
+        $this->notify(
+            $user,
+            'ticket_status_changed',
+            sprintf('Ticket "%s" moved from %s to %s', $ticketTitle, $oldStatus, $newStatus),
+            'info'
+        );
+    }
+
+    public function attachmentUploaded(
+        User $user,
+        string $ticketTitle
+    ): void {
+        $this->notify(
+            $user,
+            'attachment_uploaded',
+            sprintf('New attachment added on ticket: "%s"', $ticketTitle),
+            'success'
+        );
+    }
+
+    public function warning(User $user, string $message): void 
+    {
+        $this->notify($user, 'warning', $message, 'warning');
+    }
+
+    public function error(User $user, string $message): void 
+    {
+        $this->notify($user, 'error', $message, 'error');
     }
 }

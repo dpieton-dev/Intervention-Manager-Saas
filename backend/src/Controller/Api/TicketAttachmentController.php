@@ -12,6 +12,7 @@ use App\Exception\ValidationException;
 use App\Service\ApiResponseService;
 use App\Service\ProjectSecurityService;
 use App\Service\TicketActivityService;
+use App\Service\NotificationService;
 use Doctrine\ORM\EntityManagerInterface;
 use OpenApi\Attributes as OA;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -151,7 +152,8 @@ class TicketAttachmentController extends AbstractController
         ProjectSecurityService $projectSecurityService,
         TicketActivityService $ticketActivityService,
         ApiResponseService $apiResponse,
-        SluggerInterface $slugger
+        SluggerInterface $slugger,
+        NotificationService $notificationService
     ): JsonResponse {
 
         /** @var User|null $currentUser */
@@ -236,6 +238,26 @@ class TicketAttachmentController extends AbstractController
         );
 
         $entityManager->flush();
+
+        /*
+        |--------------------------------------------------------------------------
+        | NOTIFICATION
+        |--------------------------------------------------------------------------
+        */
+
+        // Notification utilisateur assigné
+        if (
+            $ticket->getAssignedTo()
+            &&
+            $ticket->getAssignedTo()->getId()
+            !== $currentUser->getId()
+        ) {
+
+            $notificationService->attachmentUploaded(
+                $ticket->getAssignedTo(),
+                $ticket->getTitle()
+            );
+        }
 
         return $apiResponse->success(
             $this->formatAttachment($attachment),

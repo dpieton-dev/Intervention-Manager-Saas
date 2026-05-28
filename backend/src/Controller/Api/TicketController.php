@@ -528,7 +528,8 @@ class TicketController extends AbstractController
         ProjectSecurityService $projectSecurityService,
         TicketActivityService $ticketActivityService,
         ApiResponseService $apiResponse,
-        RealtimeService $realtimeService
+        RealtimeService $realtimeService,
+        NotificationService $notificationService
     ): JsonResponse {
         /** @var User|null $user */
         $user = $this->getUser();
@@ -586,6 +587,20 @@ class TicketController extends AbstractController
             $oldStatus,
             $data['status']
         );
+
+        // Notification utilisateur assigné
+        if (
+            $ticket->getAssignedTo()
+            &&
+            $ticket->getAssignedTo()->getId() !== $user->getId()
+        ) {
+            $notificationService->statusChanged(
+                $ticket->getAssignedTo(),
+                $ticket->getTitle(),
+                $oldStatus,
+                $data['status']
+            );
+        }
 
         $entityManager->flush();
 
