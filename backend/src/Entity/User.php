@@ -85,6 +85,15 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\OneToMany(targetEntity: ProjectPresence::class, mappedBy: 'user')]
     private Collection $projectPresences;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $avatar = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $resetToken = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $resetTokenExpireAt = null;
+
     public function __construct()
     {
         $this->createdAt = new DateTimeImmutable();
@@ -427,6 +436,42 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
                 $projectPresence->setUser(null);
             }
         }
+
+        return $this;
+    }
+
+    public function getAvatar(): ?string
+    {
+        return $this->avatar;
+    }
+
+    public function setAvatar(?string $avatar): static
+    {
+        $this->avatar = $avatar;
+
+        return $this;
+    }
+
+    public function getResetToken(): ?string
+    {
+        return $this->resetToken;
+    }
+
+    public function setResetToken(?string $resetToken): static
+    {
+        $this->resetToken = $resetToken;
+
+        return $this;
+    }
+
+    public function getResetTokenExpireAt(): ?\DateTimeImmutable
+    {
+        return $this->resetTokenExpireAt;
+    }
+
+    public function setResetTokenExpireAt(?\DateTimeImmutable $resetTokenExpireAt): static
+    {
+        $this->resetTokenExpireAt = $resetTokenExpireAt;
 
         return $this;
     }
