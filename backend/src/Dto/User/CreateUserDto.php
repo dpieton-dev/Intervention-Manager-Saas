@@ -16,4 +16,6 @@ class CreateUserDto
 
     #[Assert\NotBlank]
     public ?string $role = 'ROLE_USER';
+
+    public ?bool $isActive = true;
 }

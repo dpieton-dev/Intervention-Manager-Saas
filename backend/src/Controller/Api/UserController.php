@@ -82,6 +82,7 @@ class UserController extends AbstractController
                     new OA\Property(property: 'email', type: 'string', example: 'user@example.com'),
                     new OA\Property(property: 'password', type: 'string', example: 'password123'),
                     new OA\Property(property: 'role', type: 'string', example: 'ROLE_USER'),
+                    new OA\Property(property: 'isActive', type: 'boolean', example: true),
                 ]
             )
         )
@@ -121,6 +122,9 @@ class UserController extends AbstractController
         $user = new User();
         $user->setEmail($dto->email);
         $user->setRoles([$dto->role]);
+        $user->setIsActive(
+            $dto->isActive ?? true
+        );
         $user->setPassword(
             $passwordHasher->hashPassword($user, $dto->password)
         );
@@ -154,6 +158,7 @@ class UserController extends AbstractController
                 properties: [
                     new OA\Property(property: 'email', type: 'string', example: 'updated@example.com'),
                     new OA\Property(property: 'role', type: 'string', example: 'ROLE_ADMIN'),
+                    new OA\Property(property: 'isActive',type: 'boolean',example: false),
                 ]
             )
         )
@@ -196,6 +201,10 @@ class UserController extends AbstractController
             }
 
             $user->setRoles([$dto->role]);
+        }
+
+        if ($dto->isActive !== null) {
+            $user->setIsActive($dto->isActive);
         }
 
         $entityManager->flush();

@@ -10,4 +10,6 @@ class UpdateUserDto
     public ?string $email = null;
 
     public ?string $role = null;
+
+    public ?bool $isActive = null;
 }
