@@ -94,6 +94,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $resetTokenExpireAt = null;
 
+    #[ORM\Column]
+    private ?bool $isActive = true;
+
     public function __construct()
     {
         $this->createdAt = new DateTimeImmutable();
@@ -474,5 +477,22 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->resetTokenExpireAt = $resetTokenExpireAt;
 
         return $this;
+    }
+
+    public function isActive(): ?bool
+    {
+        return $this->isActive;
+    }
+
+    public function setIsActive(bool $isActive): static
+    {
+        $this->isActive = $isActive;
+
+        return $this;
+    }
+
+    public function isEnabled(): bool
+    {
+        return $this->isActive === true;
     }
 }

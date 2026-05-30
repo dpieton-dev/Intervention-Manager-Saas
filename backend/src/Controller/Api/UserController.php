@@ -233,10 +233,11 @@ class UserController extends AbstractController
             throw new ForbiddenException('You cannot delete your own account');
         }
 
-        $entityManager->remove($user);
+        //$entityManager->remove($user);
+        $user->setIsActive(false);
         $entityManager->flush();
 
-        return $apiResponse->success(null, 'User deleted successfully');
+        return $apiResponse->success(null, 'User disabled successfully');
     }
 
     private function formatUser(User $user): array
@@ -245,6 +246,7 @@ class UserController extends AbstractController
             'id' => $user->getId(),
             'email' => $user->getEmail(),
             'roles' => $user->getRoles(),
+            'isActive' => $user->isActive(),
         ];
     }
 }
