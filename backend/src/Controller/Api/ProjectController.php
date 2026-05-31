@@ -148,6 +148,8 @@ class ProjectController extends AbstractController
     #[Route('/api/projects/{id}', name: 'api_project_show', methods: ['GET'])]
     public function show(Project $project, ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse): JsonResponse 
     {
+        $this->denyDeletedProject($project);
+
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
 
@@ -289,6 +291,8 @@ class ProjectController extends AbstractController
     public function update(Project $project, Request $request,EntityManagerInterface $entityManager,
         ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse, ValidatorInterface $validator,SerializerInterface $serializer): JsonResponse 
     {
+        $this->denyDeletedProject($project);
+
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
 
@@ -365,6 +369,8 @@ class ProjectController extends AbstractController
     #[Route('/api/projects/{id}', name: 'api_project_delete', methods: ['DELETE'])]
     public function delete(Project $project, EntityManagerInterface $entityManager, ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse): JsonResponse 
     {
+        $this->denyDeletedProject($project);
+
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
 
@@ -372,16 +378,23 @@ class ProjectController extends AbstractController
             throw new UnauthorizedException();
         }
 
-        if (!$projectSecurityService->hasProjectRole($project,$currentUser,'project_manager')) 
-        {
+        if (
+            !$projectSecurityService->hasProjectRole(
+                $project,
+                $currentUser,
+                'project_manager'
+            )
+        ) {
             throw new ForbiddenException('Only project managers can delete projects');
         }
 
-        $entityManager->remove($project);
+        // Soft delete : on ne supprime pas physiquement le projet
+        $project->setDeletedAt(new \DateTimeImmutable());
+
         $entityManager->flush();
 
         return $apiResponse->success(
-            null,
+            $this->formatProject($project),
             'Project deleted successfully'
         );
     }
@@ -410,6 +423,8 @@ class ProjectController extends AbstractController
     #[Route('/api/projects/{id}/board', name: 'api_project_board', methods: ['GET'])]
     public function board(Project $project, ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse): JsonResponse 
     {
+        $this->denyDeletedProject($project);
+
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
 
@@ -432,6 +447,10 @@ class ProjectController extends AbstractController
 
         foreach ($project->getTickets() as $ticket) 
         {
+            if ($ticket->getDeleteAt() !== null) {
+                continue;
+            }
+
             $ticketData = [
                 'id' => $ticket->getId(),
                 'title' => $ticket->getTitle(),
@@ -497,6 +516,8 @@ class ProjectController extends AbstractController
     public function addMember(Project $project,Request $request,UserRepository $userRepository,ProjectRoleRepository $projectRoleRepository,
         EntityManagerInterface $entityManager,ProjectSecurityService $projectSecurityService,ApiResponseService $apiResponse): JsonResponse 
     {
+        $this->denyDeletedProject($project);
+
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
 
@@ -570,16 +591,104 @@ class ProjectController extends AbstractController
         ], 'Member added successfully', 201);
     }
 
+    #[OA\Get(
+        path: '/api/projects/deleted',
+        summary: 'List deleted projects',
+        description: 'Retrieve soft deleted projects for the authenticated user.',
+        security: [['Bearer' => []]],
+        tags: ['Projects'],
+        parameters: [
+            new OA\Parameter(
+                name: 'page',
+                in: 'query',
+                required: false,
+                schema: new OA\Schema(
+                    type: 'integer',
+                    example: 1
+                )
+            ),
+            new OA\Parameter(
+                name: 'limit',
+                in: 'query',
+                required: false,
+                schema: new OA\Schema(
+                    type: 'integer',
+                    example: 10
+                )
+            ),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Deleted projects retrieved successfully'
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'User not authenticated'
+            ),
+        ]
+    )]
+    #[Route('/api/projects/deleted', name: 'api_projects_deleted', methods: ['GET'])]
+    public function deleted(
+        Request $request,
+        ProjectRepository $projectRepository,
+        ApiResponseService $apiResponse
+    ): JsonResponse {
+        /** @var User|null $user */
+        $user = $this->getUser();
+
+        if (!$user instanceof User) {
+            throw new UnauthorizedException();
+        }
+
+        $page = max(
+            1,
+            (int) $request->query->get('page', 1)
+        );
+
+        $limit = max(
+            1,
+            (int) $request->query->get('limit', 10)
+        );
+
+        $result = $projectRepository->findDeletedProjectsForUser(
+            $user,
+            $page,
+            $limit
+        );
+
+        $projects = [];
+
+        foreach ($result['data'] as $project) {
+            $projects[] = $this->formatProject($project);
+        }
+
+        return $apiResponse->success(
+            [
+                'projects' => $projects,
+                'pagination' => $result['pagination'],
+            ],
+            'Deleted projects retrieved successfully'
+        );
+    }
+
+    
+
     private function formatProject(Project $project): array
     {
         $tickets = [];
 
         foreach ($project->getTickets() as $ticket) {
+            if ($ticket->getDeleteAt() !== null) {
+                continue;
+            }
+
             $tickets[] = [
                 'id' => $ticket->getId(),
                 'title' => $ticket->getTitle(),
                 'status' => $ticket->getStatus(),
                 'priority' => $ticket->getPriority(),
+                'deletedAt' => $project->getDeletedAt()?->format('Y-m-d H:i:s'),
             ];
         }
 
@@ -593,5 +702,12 @@ class ProjectController extends AbstractController
             'createdAt' => $project->getCreatedAt()?->format('Y-m-d H:i:s'),
             'tickets' => $tickets,
         ];
+    }
+
+    private function denyDeletedProject(Project $project): void
+    {
+        if ($project->getDeletedAt() !== null) {
+            throw new NotFoundException('Project not found');
+        }
     }
 }

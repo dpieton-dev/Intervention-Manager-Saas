@@ -20,6 +20,7 @@ class ProjectRepository extends ServiceEntityRepository
             ->join('p.members', 'm')
             ->join('m.user', 'u')
             ->andWhere('u.id = :userId')
+            ->andWhere('p.deletedAt IS NULL')
             ->setParameter('userId', $user->getId());
 
         if (!empty($filters['status'])) {
@@ -38,6 +39,41 @@ class ProjectRepository extends ServiceEntityRepository
 
         $projects = $queryBuilder
             ->orderBy('p.createdAt', 'DESC')
+            ->setFirstResult(($page - 1) * $limit)
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+
+        return [
+            'data' => $projects,
+            'pagination' => [
+                'page' => $page,
+                'limit' => $limit,
+                'total' => $total,
+            ],
+        ];
+    }
+
+    public function findDeletedProjectsForUser(
+        User $user,
+        int $page = 1,
+        int $limit = 10
+    ): array {
+        $queryBuilder = $this->createQueryBuilder('p')
+            ->join('p.members', 'm')
+            ->join('m.user', 'u')
+            ->andWhere('u.id = :userId')
+            ->andWhere('p.deletedAt IS NOT NULL')
+            ->setParameter('userId', $user->getId());
+
+        $total = count(
+            (clone $queryBuilder)
+                ->getQuery()
+                ->getResult()
+        );
+
+        $projects = $queryBuilder
+            ->orderBy('p.deletedAt', 'DESC')
             ->setFirstResult(($page - 1) * $limit)
             ->setMaxResults($limit)
             ->getQuery()

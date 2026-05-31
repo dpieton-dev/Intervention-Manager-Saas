@@ -707,6 +707,39 @@ class TicketController extends AbstractController
         );
     }
 
+    #[OA\Get(
+        path: '/api/tickets/deleted',
+        summary: 'List deleted tickets',
+        description: 'Retrieve all soft deleted tickets.',
+        security: [['Bearer' => []]],
+        tags: ['Tickets'],
+        parameters: [
+            new OA\Parameter(
+                name: 'page',
+                in: 'query',
+                required: false,
+                schema: new OA\Schema(
+                    type: 'integer',
+                    example: 1
+                )
+            ),
+            new OA\Parameter(
+                name: 'limit',
+                in: 'query',
+                required: false,
+                schema: new OA\Schema(
+                    type: 'integer',
+                    example: 10
+                )
+            ),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Deleted tickets retrieved successfully'
+            ),
+        ]
+    )]
     #[Route('/api/tickets/deleted', name: 'api_tickets_deleted', methods: ['GET'])]
     public function deleted(
         Request $request,
@@ -730,6 +763,38 @@ class TicketController extends AbstractController
         ], 'Deleted tickets retrieved successfully');
     }
 
+    #[OA\Post(
+        path: '/api/tickets/{id}/restore',
+        summary: 'Restore ticket',
+        description: 'Restore a soft deleted ticket.',
+        security: [['Bearer' => []]],
+        tags: ['Tickets'],
+        parameters: [
+            new OA\Parameter(
+                name: 'id',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(
+                    type: 'integer',
+                    example: 1
+                )
+            ),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Ticket restored successfully'
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Only project managers can restore tickets'
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Ticket not found'
+            ),
+        ]
+    )]
     #[Route('/api/tickets/{id}/restore', name: 'api_ticket_restore', methods: ['POST'])]
     public function restore(
         Ticket $ticket,
@@ -800,14 +865,14 @@ class TicketController extends AbstractController
         ];
     }
 
-    private function denyDeletedTicket(
-        Ticket $ticket
-    ): void {
-
+    private function denyDeletedTicket(Ticket $ticket): void
+    {
         if ($ticket->getDeleteAt() !== null) {
-            throw $this->createNotFoundException(
-                'Ticket not found'
-            );
+            throw new NotFoundException('Ticket not found');
+        }
+
+        if ($ticket->getProject()?->getDeletedAt() !== null) {
+            throw new NotFoundException('Ticket not found');
         }
     }
 }
