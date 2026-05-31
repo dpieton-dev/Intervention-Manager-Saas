@@ -62,6 +62,8 @@ class TicketAttachmentController extends AbstractController
         ApiResponseService $apiResponse
     ): JsonResponse {
 
+        $this->denyDeletedTicket($ticket);
+
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
 
@@ -155,6 +157,8 @@ class TicketAttachmentController extends AbstractController
         SluggerInterface $slugger,
         NotificationService $notificationService
     ): JsonResponse {
+
+        $this->denyDeletedTicket($ticket);
 
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
@@ -419,5 +423,12 @@ class TicketAttachmentController extends AbstractController
                     ?->getEmail(),
             ],
         ];
+    }
+
+    private function denyDeletedTicket(Ticket $ticket): void
+    {
+        if ($ticket->getDeleteAt() !== null) {
+            throw $this->createNotFoundException('Ticket not found');
+        }
     }
 }

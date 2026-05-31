@@ -61,6 +61,9 @@ class TicketCommentController extends AbstractController
         ProjectSecurityService $projectSecurityService,
         ApiResponseService $apiResponse
     ): JsonResponse {
+
+        $this->denyDeletedTicket($ticket);
+
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
 
@@ -144,6 +147,9 @@ class TicketCommentController extends AbstractController
         RealtimeService $realtimeService,
         NotificationService $notificationService
     ): JsonResponse {
+
+        $this->denyDeletedTicket($ticket);
+
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
 
@@ -339,4 +345,12 @@ class TicketCommentController extends AbstractController
             ],
         ];
     }
+
+    private function denyDeletedTicket(Ticket $ticket): void
+    {
+        if ($ticket->getDeleteAt() !== null) {
+            throw $this->createNotFoundException('Ticket not found');
+        }
+    }
+
 }

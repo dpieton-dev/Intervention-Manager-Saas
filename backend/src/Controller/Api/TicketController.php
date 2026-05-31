@@ -139,6 +139,14 @@ class TicketController extends AbstractController
         Ticket $ticket,
         ApiResponseService $apiResponse
     ): JsonResponse {
+
+        $this->denyDeletedTicket($ticket);
+
+        if ($ticket->getDeleteAt() !== null) {
+            throw $this->createNotFoundException(
+                'Ticket not found'
+            );
+        }
         return $apiResponse->success(
             $this->formatTicket($ticket),
             'Ticket retrieved successfully'
@@ -282,6 +290,9 @@ class TicketController extends AbstractController
         ValidatorInterface $validator,
         SerializerInterface $serializer
     ): JsonResponse {
+
+        $this->denyDeletedTicket($ticket);
+
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
 
@@ -361,6 +372,9 @@ class TicketController extends AbstractController
         ProjectSecurityService $projectSecurityService,
         ApiResponseService $apiResponse
     ): JsonResponse {
+
+        $this->denyDeletedTicket($ticket);
+
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
 
@@ -379,10 +393,14 @@ class TicketController extends AbstractController
             throw new ForbiddenException('Only project managers can delete tickets');
         }
 
-        $entityManager->remove($ticket);
+        //$entityManager->remove($ticket);
+        $ticket->setDeleteAt(new \DateTimeImmutable());
         $entityManager->flush();
 
-        return $apiResponse->success(null, 'Ticket deleted successfully');
+        return $apiResponse->success(
+            $this->formatTicket($ticket),
+            'Ticket deleted successfully'
+        );
     }
 
     #[OA\Patch(
@@ -427,6 +445,9 @@ class TicketController extends AbstractController
         ApiResponseService $apiResponse,
         NotificationService $notificationService
     ): JsonResponse {
+
+        $this->denyDeletedTicket($ticket);
+
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
 
@@ -531,6 +552,9 @@ class TicketController extends AbstractController
         RealtimeService $realtimeService,
         NotificationService $notificationService
     ): JsonResponse {
+
+        $this->denyDeletedTicket($ticket);
+
         /** @var User|null $user */
         $user = $this->getUser();
 
@@ -647,6 +671,9 @@ class TicketController extends AbstractController
         ProjectSecurityService $projectSecurityService,
         ApiResponseService $apiResponse
     ): JsonResponse {
+
+        $this->denyDeletedTicket($ticket);
+
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
 
@@ -680,6 +707,71 @@ class TicketController extends AbstractController
         );
     }
 
+    #[Route('/api/tickets/deleted', name: 'api_tickets_deleted', methods: ['GET'])]
+    public function deleted(
+        Request $request,
+        TicketRepository $ticketRepository,
+        ApiResponseService $apiResponse
+    ): JsonResponse {
+        $page = max(1, (int) $request->query->get('page', 1));
+        $limit = max(1, (int) $request->query->get('limit', 10));
+
+        $result = $ticketRepository->findDeletedTickets($page, $limit);
+
+        $tickets = [];
+
+        foreach ($result['data'] as $ticket) {
+            $tickets[] = $this->formatTicket($ticket);
+        }
+
+        return $apiResponse->success([
+            'tickets' => $tickets,
+            'pagination' => $result['pagination'],
+        ], 'Deleted tickets retrieved successfully');
+    }
+
+    #[Route('/api/tickets/{id}/restore', name: 'api_ticket_restore', methods: ['POST'])]
+    public function restore(
+        Ticket $ticket,
+        EntityManagerInterface $entityManager,
+        ProjectSecurityService $projectSecurityService,
+        ApiResponseService $apiResponse
+    ): JsonResponse {
+        /** @var User|null $currentUser */
+        $currentUser = $this->getUser();
+
+        if (!$currentUser instanceof User) {
+            throw new UnauthorizedException();
+        }
+
+        if (
+            !$projectSecurityService->hasProjectRole(
+                $ticket->getProject(),
+                $currentUser,
+                'project_manager'
+            )
+        ) {
+            throw new ForbiddenException('Only project managers can restore tickets');
+        }
+
+        if ($ticket->getDeleteAt() === null) {
+            return $apiResponse->success(
+                $this->formatTicket($ticket),
+                'Ticket is already active'
+            );
+        }
+
+        $ticket->setDeleteAt(null);
+        $ticket->setUpdateAt(new \DateTimeImmutable());
+
+        $entityManager->flush();
+
+        return $apiResponse->success(
+            $this->formatTicket($ticket),
+            'Ticket restored successfully'
+        );
+    }
+
     private function formatTicket(Ticket $ticket): array
     {
         return [
@@ -706,5 +798,16 @@ class TicketController extends AbstractController
                 'email' => $ticket->getAssignedTo()->getEmail(),
             ] : null,
         ];
+    }
+
+    private function denyDeletedTicket(
+        Ticket $ticket
+    ): void {
+
+        if ($ticket->getDeleteAt() !== null) {
+            throw $this->createNotFoundException(
+                'Ticket not found'
+            );
+        }
     }
 }

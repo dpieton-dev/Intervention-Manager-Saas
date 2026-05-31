@@ -88,6 +88,9 @@ class Ticket
     #[ORM\OneToMany(targetEntity: TicketAttachment::class, mappedBy: 'ticket')]
     private Collection $attachments;
 
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $deleteAt = null;
+
     public function __construct()
     {
         // Date de création automatique
@@ -302,6 +305,18 @@ class Ticket
                 $attachment->setTicket(null);
             }
         }
+
+        return $this;
+    }
+
+    public function getDeleteAt(): ?\DateTimeImmutable
+    {
+        return $this->deleteAt;
+    }
+
+    public function setDeleteAt(?\DateTimeImmutable $deleteAt): static
+    {
+        $this->deleteAt = $deleteAt;
 
         return $this;
     }

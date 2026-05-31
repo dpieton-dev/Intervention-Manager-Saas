@@ -21,7 +21,8 @@ class TicketRepository extends ServiceEntityRepository
         $queryBuilder = $this->createQueryBuilder('t')
             ->leftJoin('t.project', 'p')
             ->leftJoin('t.assignedTo', 'a')
-            ->leftJoin('t.createdBy', 'c');
+            ->leftJoin('t.createdBy', 'c')
+            ->andWhere('t.deleteAt IS NULL');
 
         // FILTERS
         // Status
@@ -91,6 +92,37 @@ class TicketRepository extends ServiceEntityRepository
                 ->getQuery()
                 ->getResult()
         );
+
+        return [
+            'data' => $tickets,
+            'pagination' => [
+                'page' => $page,
+                'limit' => $limit,
+                'total' => $total,
+            ],
+        ];
+    }
+
+    public function findDeletedTickets(int $page = 1, int $limit = 10): array
+    {
+        $queryBuilder = $this->createQueryBuilder('t')
+            ->leftJoin('t.project', 'p')
+            ->leftJoin('t.assignedTo', 'a')
+            ->leftJoin('t.createdBy', 'c')
+            ->andWhere('t.deleteAt IS NOT NULL')
+            ->orderBy('t.deleteAt', 'DESC');
+
+        $total = count(
+            (clone $queryBuilder)
+                ->getQuery()
+                ->getResult()
+        );
+
+        $tickets = $queryBuilder
+            ->setFirstResult(($page - 1) * $limit)
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
 
         return [
             'data' => $tickets,
