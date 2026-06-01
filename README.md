@@ -23,7 +23,19 @@ Les fonctionnalités principales sont en cours d'implémentation et le périmèt
 
 ---
 
-# 📸 Aperçu
+# 📸 Captures d'écran
+
+## Dashboard
+
+![Dashboard](screenshots/dashboard.png)
+
+## Gestion des tickets
+
+![Tickets](screenshots/tickets.png)
+
+## Détail intervention
+
+![Intervention](screenshots/intervention.png)
 
 ## Fonctionnalités principales
 
