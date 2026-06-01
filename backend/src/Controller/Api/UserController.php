@@ -7,6 +7,7 @@ use App\Dto\User\UpdateUserDto;
 use App\Entity\User;
 use App\Exception\ForbiddenException;
 use App\Exception\ValidationException;
+use App\Exception\NotFoundException;
 use App\Repository\UserRepository;
 use App\Service\ApiResponseService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -37,11 +38,87 @@ class UserController extends AbstractController
     ): JsonResponse {
         $users = [];
 
-        foreach ($userRepository->findAll() as $user) {
+        foreach ($userRepository->findActiveUsers() as $user) {
             $users[] = $this->formatUser($user);
         }
 
         return $apiResponse->success($users, 'Users retrieved successfully');
+    }
+
+    #[OA\Get(
+        path: '/api/users/deleted',
+        summary: 'List deleted users',
+        description: 'Retrieve soft deleted users.',
+        security: [['Bearer' => []]],
+        tags: ['Users'],
+        responses: [
+            new OA\Response(response: 200, description: 'Deleted users retrieved successfully'),
+            new OA\Response(response: 401, description: 'User not authenticated'),
+        ]
+    )]
+    #[Route('/api/users/deleted', name: 'api_users_deleted', methods: ['GET'])]
+    public function deleted(
+        UserRepository $userRepository,
+        ApiResponseService $apiResponse
+    ): JsonResponse {
+        $users = [];
+
+        foreach ($userRepository->findDeletedUsers() as $user) {
+            $users[] = $this->formatUser($user);
+        }
+
+        return $apiResponse->success(
+            $users,
+            'Deleted users retrieved successfully'
+        );
+    }
+    
+    #[OA\Post(
+        path: '/api/users/{id}/restore',
+        summary: 'Restore user',
+        description: 'Restore a soft deleted user and reactivate the account.',
+        security: [['Bearer' => []]],
+        tags: ['Users'],
+        parameters: [
+            new OA\Parameter(
+                name: 'id',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(
+                    type: 'integer',
+                    example: 1
+                )
+            ),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'User restored successfully'),
+            new OA\Response(response: 401, description: 'User not authenticated'),
+            new OA\Response(response: 403, description: 'Access denied'),
+            new OA\Response(response: 404, description: 'User not found'),
+        ]
+    )]
+    #[Route('/api/users/{id}/restore', name: 'api_user_restore', methods: ['POST'])]
+    public function restore(
+        User $user,
+        EntityManagerInterface $entityManager,
+        ApiResponseService $apiResponse
+    ): JsonResponse {
+        if ($user->getDeletedAt() === null) {
+            return $apiResponse->success(
+                $this->formatUser($user),
+                'User is already active'
+            );
+        }
+
+        $user->setDeletedAt(null);
+        $user->setIsActive(true);
+
+        $entityManager->flush();
+
+        return $apiResponse->success(
+            $this->formatUser($user),
+            'User restored successfully'
+        );
     }
 
     #[OA\Get(
@@ -63,6 +140,9 @@ class UserController extends AbstractController
         User $user,
         ApiResponseService $apiResponse
     ): JsonResponse {
+
+        $this->denyDeletedUser($user);
+
         return $apiResponse->success(
             $this->formatUser($user),
             'User retrieved successfully'
@@ -172,6 +252,9 @@ class UserController extends AbstractController
         ValidatorInterface $validator,
         SerializerInterface $serializer
     ): JsonResponse {
+
+        $this->denyDeletedUser($user);
+        
         $dto = $serializer->deserialize(
             $request->getContent(),
             UpdateUserDto::class,
@@ -242,12 +325,16 @@ class UserController extends AbstractController
             throw new ForbiddenException('You cannot delete your own account');
         }
 
+        // Soft delete + désactivation
+        $user->setDeletedAt(new \DateTimeImmutable());
         //$entityManager->remove($user);
         $user->setIsActive(false);
         $entityManager->flush();
 
         return $apiResponse->success(null, 'User disabled successfully');
     }
+
+    
 
     private function formatUser(User $user): array
     {
@@ -256,6 +343,14 @@ class UserController extends AbstractController
             'email' => $user->getEmail(),
             'roles' => $user->getRoles(),
             'isActive' => $user->isActive(),
+            'deletedAt' => $user->getDeletedAt()?->format('Y-m-d H:i:s'),
         ];
+    }
+
+    private function denyDeletedUser(User $user): void
+    {
+        if ($user->getDeletedAt() !== null) {
+            throw new NotFoundException('User not found');
+        }
     }
 }

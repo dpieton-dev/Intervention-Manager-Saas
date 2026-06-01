@@ -672,7 +672,90 @@ class ProjectController extends AbstractController
         );
     }
 
-    
+    #[OA\Post(
+        path: '/api/projects/{id}/restore',
+        summary: 'Restore project',
+        description: 'Restore a soft deleted project.',
+        security: [['Bearer' => []]],
+        tags: ['Projects'],
+        parameters: [
+            new OA\Parameter(
+                name: 'id',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(
+                    type: 'integer',
+                    example: 1
+                )
+            ),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Project restored successfully'
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'User not authenticated'
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Only project managers can restore projects'
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Project not found'
+            ),
+        ]
+    )]
+    #[Route(
+        '/api/projects/{id}/restore',
+        name: 'api_project_restore',
+        methods: ['POST']
+    )]
+    public function restore(
+        Project $project,
+        EntityManagerInterface $entityManager,
+        ProjectSecurityService $projectSecurityService,
+        ApiResponseService $apiResponse
+    ): JsonResponse {
+
+        /** @var User|null $currentUser */
+        $currentUser = $this->getUser();
+
+        if (!$currentUser instanceof User) {
+            throw new UnauthorizedException();
+        }
+
+        if (
+            !$projectSecurityService->hasProjectRole(
+                $project,
+                $currentUser,
+                'project_manager'
+            )
+        ) {
+            throw new ForbiddenException(
+                'Only project managers can restore projects'
+            );
+        }
+
+        if ($project->getDeletedAt() === null) {
+
+            return $apiResponse->success(
+                $this->formatProject($project),
+                'Project is already active'
+            );
+        }
+
+        $project->setDeletedAt(null);
+
+        $entityManager->flush();
+
+        return $apiResponse->success(
+            $this->formatProject($project),
+            'Project restored successfully'
+        );
+    }
 
     private function formatProject(Project $project): array
     {
