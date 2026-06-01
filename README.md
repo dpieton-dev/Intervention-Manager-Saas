@@ -14,12 +14,19 @@ L'application permet de :
 
 Fournir une plateforme moderne et sécurisée permettant de remplacer les échanges par email et les fichiers Excel par un workflow structuré et traçable.
 
-### 🚧 Statut du projet
+## 🚧 Statut du projet
 
-Projet actuellement en développement actif.
+Le backend est actuellement en phase finale de développement.
+Les fonctionnalités principales de gestion des utilisateurs, rôles, authentification JWT et tickets sont déjà implémentées.
 
-Les fonctionnalités principales sont en cours d'implémentation et le périmètre évolue progressivement.
+Les prochaines étapes concernent :
 
+* finalisation des fonctionnalités restantes
+* renforcement des tests
+* intégration complète du frontend Angular
+* amélioration de l'expérience utilisateur
+
+Une roadmap détaillée sera ajoutée à la première version stable du projet.
 
 ---
 
