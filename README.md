@@ -1,6 +1,25 @@
 # 🚀 Intervention Manager SaaS
 
-Application Fullstack moderne de gestion d’interventions et de tickets développée avec Symfony 7, Angular 21 et PostgreSQL.
+Solution SaaS de gestion d'interventions, tickets et maintenance destinée aux entreprises de services techniques.
+
+L'application permet de :
+
+* centraliser les demandes d'intervention
+* suivre l'avancement des tickets
+* gérer les techniciens et les rôles
+* visualiser l'activité via un tableau de bord
+* conserver l'historique complet des interventions
+
+### 🎯 Objectif
+
+Fournir une plateforme moderne et sécurisée permettant de remplacer les échanges par email et les fichiers Excel par un workflow structuré et traçable.
+
+### 🚧 Statut du projet
+
+Projet actuellement en développement actif.
+
+Les fonctionnalités principales sont en cours d'implémentation et le périmètre évolue progressivement.
+
 
 ---
 
