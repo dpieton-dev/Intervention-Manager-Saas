@@ -37,6 +37,11 @@ Les fonctionnalités principales sont en cours d'implémentation et le périmèt
 
 ![Intervention](screenshots/intervention.png)
 
+# 🌐 Démonstration
+
+Projet actuellement en développement.
+La démonstration publique sera disponible prochainement.
+
 ## Fonctionnalités principales
 
 * 🔐 Authentification JWT sécurisée
