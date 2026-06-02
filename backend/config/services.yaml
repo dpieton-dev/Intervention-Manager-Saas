@@ -19,5 +19,21 @@ services:
     App\:
         resource: '../src/'
 
+    App\Security\LoginSuccessHandler:
+        tags:
+            - {
+                name: kernel.event_listener,
+                event: lexik_jwt_authentication.on_authentication_success,
+                method: onAuthenticationSuccess
+            }
+
+    App\Security\LoginFailureHandler:
+        tags:
+            - {
+                name: kernel.event_listener,
+                event: Symfony\Component\Security\Http\Event\LoginFailureEvent,
+                method: onLoginFailure
+            }
+
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

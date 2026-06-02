@@ -8,6 +8,7 @@ use App\Entity\User;
 use App\Exception\ValidationException;
 use App\Repository\UserRepository;
 use App\Service\ApiResponseService;
+use App\Service\AuditLogService;
 use Doctrine\ORM\EntityManagerInterface;
 use OpenApi\Attributes as OA;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -33,7 +34,8 @@ class PasswordResetController extends AbstractController
         ValidatorInterface $validator,
         UserRepository $userRepository,
         EntityManagerInterface $entityManager,
-        ApiResponseService $apiResponse
+        ApiResponseService $apiResponse,
+        AuditLogService $auditLogService
     ): JsonResponse {
 
         $dto = $serializer->deserialize(
@@ -62,6 +64,16 @@ class PasswordResetController extends AbstractController
 
             $user->setResetTokenExpireAt(
                 new \DateTimeImmutable('+1 hour')
+            );
+
+            $entityManager->flush();
+
+            $auditLogService->log(
+                'PASSWORD_RESET_REQUEST',
+                sprintf('Password reset requested for "%s"', $user->getEmail()),
+                $user,
+                'User',
+                $user->getId()
             );
 
             $entityManager->flush();
@@ -96,7 +108,8 @@ class PasswordResetController extends AbstractController
         UserRepository $userRepository,
         EntityManagerInterface $entityManager,
         UserPasswordHasherInterface $passwordHasher,
-        ApiResponseService $apiResponse
+        ApiResponseService $apiResponse,
+        AuditLogService $auditLogService
     ): JsonResponse {
 
         $dto = $serializer->deserialize(
@@ -139,6 +152,14 @@ class PasswordResetController extends AbstractController
 
         $user->setResetToken(null);
         $user->setResetTokenExpireAt(null);
+
+        $auditLogService->log(
+            'PASSWORD_RESET_SUCCESS',
+            sprintf('Password was reset for "%s"', $user->getEmail()),
+            $user,
+            'User',
+            $user->getId()
+        );
 
         $entityManager->flush();
 
