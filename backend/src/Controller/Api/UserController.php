@@ -10,6 +10,7 @@ use App\Exception\ValidationException;
 use App\Exception\NotFoundException;
 use App\Repository\UserRepository;
 use App\Service\ApiResponseService;
+use App\Service\AuditLogService;
 use Doctrine\ORM\EntityManagerInterface;
 use OpenApi\Attributes as OA;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -101,7 +102,8 @@ class UserController extends AbstractController
     public function restore(
         User $user,
         EntityManagerInterface $entityManager,
-        ApiResponseService $apiResponse
+        ApiResponseService $apiResponse,
+        AuditLogService $auditLogService
     ): JsonResponse {
         if ($user->getDeletedAt() === null) {
             return $apiResponse->success(
@@ -112,6 +114,17 @@ class UserController extends AbstractController
 
         $user->setDeletedAt(null);
         $user->setIsActive(true);
+
+        /** @var User|null $currentUser */
+        $currentUser = $this->getUser();
+
+        $auditLogService->log(
+            'USER_RESTORED',
+            sprintf('User "%s" was restored', $user->getEmail()),
+            $currentUser instanceof User ? $currentUser : null,
+            'User',
+            $user->getId()
+        );
 
         $entityManager->flush();
 
@@ -174,7 +187,8 @@ class UserController extends AbstractController
         ApiResponseService $apiResponse,
         ValidatorInterface $validator,
         SerializerInterface $serializer,
-        UserPasswordHasherInterface $passwordHasher
+        UserPasswordHasherInterface $passwordHasher,
+        AuditLogService $auditLogService
     ): JsonResponse {
         $dto = $serializer->deserialize(
             $request->getContent(),
@@ -210,6 +224,19 @@ class UserController extends AbstractController
         );
 
         $entityManager->persist($user);
+        $entityManager->flush();
+
+        /** @var User|null $currentUser */
+        $currentUser = $this->getUser();
+
+        $auditLogService->log(
+            'USER_CREATED',
+            sprintf('User "%s" was created', $user->getEmail()),
+            $currentUser instanceof User ? $currentUser : null,
+            'User',
+            $user->getId()
+        );
+        
         $entityManager->flush();
 
         return $apiResponse->success(
@@ -250,7 +277,8 @@ class UserController extends AbstractController
         EntityManagerInterface $entityManager,
         ApiResponseService $apiResponse,
         ValidatorInterface $validator,
-        SerializerInterface $serializer
+        SerializerInterface $serializer,
+        AuditLogService $auditLogService
     ): JsonResponse {
 
         $this->denyDeletedUser($user);
@@ -290,6 +318,17 @@ class UserController extends AbstractController
             $user->setIsActive($dto->isActive);
         }
 
+        /** @var User|null $currentUser */
+        $currentUser = $this->getUser();
+
+        $auditLogService->log(
+            'USER_UPDATED',
+            sprintf('User "%s" was updated', $user->getEmail()),
+            $currentUser instanceof User ? $currentUser : null,
+            'User',
+            $user->getId()
+        );
+
         $entityManager->flush();
 
         return $apiResponse->success(
@@ -316,8 +355,11 @@ class UserController extends AbstractController
     public function delete(
         User $user,
         EntityManagerInterface $entityManager,
-        ApiResponseService $apiResponse
+        ApiResponseService $apiResponse,
+        AuditLogService $auditLogService
     ): JsonResponse {
+        $this->denyDeletedUser($user);
+
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
 
@@ -329,12 +371,19 @@ class UserController extends AbstractController
         $user->setDeletedAt(new \DateTimeImmutable());
         //$entityManager->remove($user);
         $user->setIsActive(false);
+
+        $auditLogService->log(
+            'USER_DELETED',
+            sprintf('User "%s" was soft deleted', $user->getEmail()),
+            $currentUser instanceof User ? $currentUser : null,
+            'User',
+            $user->getId()
+        );
+
         $entityManager->flush();
 
         return $apiResponse->success(null, 'User disabled successfully');
     }
-
-    
 
     private function formatUser(User $user): array
     {

@@ -10,10 +10,8 @@ use Doctrine\ORM\EntityManagerInterface;
 
 class TicketActivityService
 {
-    public function __construct(
-        private EntityManagerInterface $entityManager,
-        private RealtimeService $realtimeService
-    ) {
+    public function __construct(private EntityManagerInterface $entityManager, private RealtimeService $realtimeService) 
+    {
     }
 
     /*
@@ -21,13 +19,8 @@ class TicketActivityService
     | CREATE ACTIVITY
     |--------------------------------------------------------------------------
     */
-
-    public function log(
-        Ticket $ticket,
-        User $user,
-        string $action,
-        string $description
-    ): void {
+    public function log(Ticket $ticket, User $user, string $action, string $description): void 
+    {
 
         $activity = new TicketActivity();
         $activity->setTicket($ticket);
@@ -59,11 +52,8 @@ class TicketActivityService
     | TICKET CREATED
     |--------------------------------------------------------------------------
     */
-
-    public function logTicketCreated(
-        Ticket $ticket,
-        User $user
-    ): void {
+    public function logTicketCreated(Ticket $ticket, User $user): void 
+    {
 
         $this->log(
             $ticket,
@@ -82,13 +72,8 @@ class TicketActivityService
     | STATUS CHANGED
     |--------------------------------------------------------------------------
     */
-
-    public function logStatusChanged(
-        Ticket $ticket,
-        User $user,
-        string $oldStatus,
-        string $newStatus
-    ): void {
+    public function logStatusChanged(Ticket $ticket, User $user, string $oldStatus, string $newStatus): void 
+    {
 
         $this->log(
             $ticket,
@@ -108,12 +93,8 @@ class TicketActivityService
     | TICKET ASSIGNED
     |--------------------------------------------------------------------------
     */
-
-    public function logAssigned(
-        Ticket $ticket,
-        User $user,
-        User $assignedUser
-    ): void {
+    public function logAssigned(Ticket $ticket, User $user, User $assignedUser): void 
+    {
 
         $this->log(
             $ticket,
@@ -132,11 +113,8 @@ class TicketActivityService
     | COMMENT ADDED
     |--------------------------------------------------------------------------
     */
-
-    public function logCommentAdded(
-        Ticket $ticket,
-        User $user
-    ): void {
+    public function logCommentAdded(Ticket $ticket, User $user): void 
+    {
 
         $this->log(
             $ticket,
@@ -154,11 +132,8 @@ class TicketActivityService
     | COMMENT DELETED
     |--------------------------------------------------------------------------
     */
-
-    public function logCommentDeleted(
-        Ticket $ticket,
-        User $user
-    ): void {
+    public function logCommentDeleted(Ticket $ticket, User $user): void 
+    {
 
         $this->log(
             $ticket,
@@ -170,4 +145,5 @@ class TicketActivityService
             )
         );
     }
+    
 }

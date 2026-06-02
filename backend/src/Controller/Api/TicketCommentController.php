@@ -14,6 +14,7 @@ use App\Service\ProjectSecurityService;
 use App\Service\TicketActivityService;
 use App\Service\RealtimeService;
 use App\Service\NotificationService;
+use App\Service\AuditLogService;
 use Doctrine\ORM\EntityManagerInterface;
 use OpenApi\Attributes as OA;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -145,7 +146,8 @@ class TicketCommentController extends AbstractController
         ValidatorInterface $validator,
         SerializerInterface $serializer,
         RealtimeService $realtimeService,
-        NotificationService $notificationService
+        NotificationService $notificationService,
+        AuditLogService $auditLogService
     ): JsonResponse {
 
         $this->denyDeletedTicket($ticket);
@@ -190,6 +192,17 @@ class TicketCommentController extends AbstractController
         }
 
         $entityManager->persist($comment);
+
+        $auditLogService->log(
+            'COMMENT_CREATED',
+            sprintf(
+                'Comment was added on ticket "%s"',
+                $ticket->getTitle()
+            ),
+            $currentUser,
+            'Ticket',
+            $ticket->getId()
+        );
 
         // Historique : commentaire ajouté
         $ticketActivityService->logCommentAdded(
@@ -286,7 +299,8 @@ class TicketCommentController extends AbstractController
         EntityManagerInterface $entityManager,
         ProjectSecurityService $projectSecurityService,
         TicketActivityService $ticketActivityService,
-        ApiResponseService $apiResponse
+        ApiResponseService $apiResponse,
+        AuditLogService $auditLogService
     ): JsonResponse {
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
@@ -316,6 +330,17 @@ class TicketCommentController extends AbstractController
         $ticketActivityService->logCommentDeleted(
             $comment->getTicket(),
             $currentUser
+        );
+
+        $auditLogService->log(
+            'COMMENT_DELETED',
+            sprintf(
+                'Comment was deleted from ticket "%s"',
+                $comment->getTicket()->getTitle()
+            ),
+            $currentUser,
+            'TicketComment',
+            $comment->getId()
         );
 
         $entityManager->remove($comment);

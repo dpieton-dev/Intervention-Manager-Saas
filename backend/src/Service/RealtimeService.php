@@ -7,9 +7,8 @@ use Symfony\Component\Mercure\Update;
 
 class RealtimeService
 {
-    public function __construct(
-        private HubInterface $hub
-    ) {
+    public function __construct(private HubInterface $hub)
+    {
     }
 
     /*
@@ -17,17 +16,9 @@ class RealtimeService
     | PUBLISH EVENT
     |--------------------------------------------------------------------------
     */
-
-    public function publish(
-        string $topic,
-        array $data
-    ): void {
-
-        $update = new Update(
-            $topic,
-            json_encode($data)
-        );
-
+    public function publish(string $topic, array $data): void 
+    {
+        $update = new Update($topic, json_encode($data));
         $this->hub->publish($update);
     }
 
@@ -36,19 +27,9 @@ class RealtimeService
     | NOTIFICATION EVENT
     |--------------------------------------------------------------------------
     */
-
-    public function notification(
-        int $userId,
-        array $data
-    ): void {
-
-        $this->publish(
-            sprintf(
-                'notifications/user/%d',
-                $userId
-            ),
-            $data
-        );
+    public function notification(int $userId, array $data): void 
+    {
+        $this->publish(sprintf('notifications/user/%d', $userId), $data);
     }
 
     /*
@@ -56,19 +37,9 @@ class RealtimeService
     | TICKET EVENT
     |--------------------------------------------------------------------------
     */
-
-    public function ticket(
-        int $ticketId,
-        array $data
-    ): void {
-
-        $this->publish(
-            sprintf(
-                'tickets/%d',
-                $ticketId
-            ),
-            $data
-        );
+    public function ticket(int $ticketId, array $data): void 
+    {
+        $this->publish(sprintf('tickets/%d', $ticketId), $data);
     }
 
     /*
@@ -76,18 +47,8 @@ class RealtimeService
     | PROJECT EVENT
     |--------------------------------------------------------------------------
     */
-
-    public function project(
-        int $projectId,
-        array $data
-    ): void {
-
-        $this->publish(
-            sprintf(
-                'projects/%d',
-                $projectId
-            ),
-            $data
-        );
+    public function project(int $projectId, array $data): void 
+    {
+        $this->publish(sprintf('projects/%d', $projectId),$data);
     }
 }

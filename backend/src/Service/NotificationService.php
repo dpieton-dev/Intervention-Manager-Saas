@@ -9,10 +9,8 @@ use Doctrine\ORM\EntityManagerInterface;
 
 class NotificationService
 {
-    public function __construct(
-        private EntityManagerInterface $entityManager,
-        private RealtimeService $realtimeService
-    ) {
+    public function __construct(private EntityManagerInterface $entityManager,private RealtimeService $realtimeService) 
+    {
     }
 
     /**
@@ -64,7 +62,7 @@ class NotificationService
     /**
      * Notification quand un ticket est assigné.
      */
-    public function ticketAssigned(User $assignedUser,string $ticketTitle): void 
+    public function ticketAssigned(User $assignedUser, string $ticketTitle): void 
     {
         $this->notify(
             $assignedUser,
@@ -74,10 +72,8 @@ class NotificationService
         );
     }
 
-    public function commentAdded(
-        User $user,
-        string $ticketTitle
-    ): void {
+    public function commentAdded(User $user, string $ticketTitle): void 
+    {
         $this->notify(
             $user,
             'comment_added',
@@ -86,12 +82,8 @@ class NotificationService
         );
     }
 
-    public function statusChanged(
-        User $user,
-        string $ticketTitle,
-        string $oldStatus,
-        string $newStatus
-    ): void {
+    public function statusChanged(User $user, string $ticketTitle, string $oldStatus, string $newStatus): void 
+    {
         $this->notify(
             $user,
             'ticket_status_changed',
@@ -100,10 +92,8 @@ class NotificationService
         );
     }
 
-    public function attachmentUploaded(
-        User $user,
-        string $ticketTitle
-    ): void {
+    public function attachmentUploaded(User $user, string $ticketTitle): void 
+    {
         $this->notify(
             $user,
             'attachment_uploaded',
@@ -121,4 +111,5 @@ class NotificationService
     {
         $this->notify($user, 'error', $message, 'error');
     }
+    
 }

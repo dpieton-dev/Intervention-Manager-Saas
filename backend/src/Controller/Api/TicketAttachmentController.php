@@ -13,6 +13,7 @@ use App\Service\ApiResponseService;
 use App\Service\ProjectSecurityService;
 use App\Service\TicketActivityService;
 use App\Service\NotificationService;
+use App\Service\AuditLogService;
 use Doctrine\ORM\EntityManagerInterface;
 use OpenApi\Attributes as OA;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -155,7 +156,8 @@ class TicketAttachmentController extends AbstractController
         TicketActivityService $ticketActivityService,
         ApiResponseService $apiResponse,
         SluggerInterface $slugger,
-        NotificationService $notificationService
+        NotificationService $notificationService,
+        AuditLogService $auditLogService
     ): JsonResponse {
 
         $this->denyDeletedTicket($ticket);
@@ -243,6 +245,20 @@ class TicketAttachmentController extends AbstractController
 
         $entityManager->flush();
 
+        $auditLogService->log(
+            'ATTACHMENT_UPLOADED',
+            sprintf(
+                'Attachment "%s" was uploaded on ticket "%s"',
+                $originalName,
+                $ticket->getTitle()
+            ),
+            $currentUser,
+            'TicketAttachment',
+            $attachment->getId()
+        );
+
+        $entityManager->flush();
+
         /*
         |--------------------------------------------------------------------------
         | NOTIFICATION
@@ -307,7 +323,8 @@ class TicketAttachmentController extends AbstractController
         EntityManagerInterface $entityManager,
         ProjectSecurityService $projectSecurityService,
         TicketActivityService $ticketActivityService,
-        ApiResponseService $apiResponse
+        ApiResponseService $apiResponse,
+        AuditLogService $auditLogService
     ): JsonResponse {
 
         /** @var User|null $currentUser */
@@ -373,6 +390,18 @@ class TicketAttachmentController extends AbstractController
                 $currentUser->getEmail(),
                 $attachment->getOriginalName()
             )
+        );
+
+        $auditLogService->log(
+            'ATTACHMENT_DELETED',
+            sprintf(
+                'Attachment "%s" was deleted from ticket "%s"',
+                $attachment->getOriginalName(),
+                $attachment->getTicket()->getTitle()
+            ),
+            $currentUser,
+            'TicketAttachment',
+            $attachment->getId()
         );
 
         $entityManager->remove($attachment);

@@ -18,6 +18,7 @@ use App\Service\ProjectSecurityService;
 use App\Service\TicketActivityService;
 use App\Service\NotificationService;
 use App\Service\RealtimeService;
+use App\Service\AuditLogService;
 use Doctrine\ORM\EntityManagerInterface;
 use OpenApi\Attributes as OA;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -188,7 +189,8 @@ class TicketController extends AbstractController
         TicketActivityService $ticketActivityService,
         ApiResponseService $apiResponse,
         ValidatorInterface $validator,
-        SerializerInterface $serializer
+        SerializerInterface $serializer,
+        AuditLogService $auditLogService
     ): JsonResponse {
         /** @var User|null $user */
         $user = $this->getUser();
@@ -241,6 +243,20 @@ class TicketController extends AbstractController
 
         $entityManager->flush();
 
+        $auditLogService->log(
+            'TICKET_CREATED',
+            sprintf(
+                'Ticket "%s" was created in project "%s"',
+                $ticket->getTitle(),
+                $project->getName()
+            ),
+            $user,
+            'Ticket',
+            $ticket->getId()
+        );
+
+        $entityManager->flush();
+
         return $apiResponse->success(
             $this->formatTicket($ticket),
             'Ticket created successfully',
@@ -288,7 +304,8 @@ class TicketController extends AbstractController
         ProjectSecurityService $projectSecurityService,
         ApiResponseService $apiResponse,
         ValidatorInterface $validator,
-        SerializerInterface $serializer
+        SerializerInterface $serializer,
+        AuditLogService $auditLogService
     ): JsonResponse {
 
         $this->denyDeletedTicket($ticket);
@@ -337,6 +354,17 @@ class TicketController extends AbstractController
 
         $ticket->setUpdateAt(new \DateTimeImmutable());
 
+        $auditLogService->log(
+            'TICKET_UPDATED',
+            sprintf(
+                'Ticket "%s" was updated',
+                $ticket->getTitle()
+            ),
+            $currentUser,
+            'Ticket',
+            $ticket->getId()
+        );
+
         $entityManager->flush();
 
         return $apiResponse->success(
@@ -370,7 +398,8 @@ class TicketController extends AbstractController
         Ticket $ticket,
         EntityManagerInterface $entityManager,
         ProjectSecurityService $projectSecurityService,
-        ApiResponseService $apiResponse
+        ApiResponseService $apiResponse,
+        AuditLogService $auditLogService
     ): JsonResponse {
 
         $this->denyDeletedTicket($ticket);
@@ -395,6 +424,18 @@ class TicketController extends AbstractController
 
         //$entityManager->remove($ticket);
         $ticket->setDeleteAt(new \DateTimeImmutable());
+
+        $auditLogService->log(
+            'TICKET_DELETED',
+            sprintf(
+                'Ticket "%s" was soft deleted',
+                $ticket->getTitle()
+            ),
+            $currentUser,
+            'Ticket',
+            $ticket->getId()
+        );
+
         $entityManager->flush();
 
         return $apiResponse->success(
@@ -443,7 +484,8 @@ class TicketController extends AbstractController
         ProjectSecurityService $projectSecurityService,
         TicketActivityService $ticketActivityService,
         ApiResponseService $apiResponse,
-        NotificationService $notificationService
+        NotificationService $notificationService,
+        AuditLogService $auditLogService,
     ): JsonResponse {
 
         $this->denyDeletedTicket($ticket);
@@ -498,6 +540,18 @@ class TicketController extends AbstractController
             $ticket->getTitle()
         );
 
+        $auditLogService->log(
+            'TICKET_ASSIGNED',
+            sprintf(
+                'Ticket "%s" assigned to "%s"',
+                $ticket->getTitle(),
+                $assignedUser->getEmail()
+            ),
+            $currentUser,
+            'Ticket',
+            $ticket->getId()
+        );
+
         $entityManager->flush();
 
         return $apiResponse->success(
@@ -550,7 +604,8 @@ class TicketController extends AbstractController
         TicketActivityService $ticketActivityService,
         ApiResponseService $apiResponse,
         RealtimeService $realtimeService,
-        NotificationService $notificationService
+        NotificationService $notificationService,
+        AuditLogService $auditLogService
     ): JsonResponse {
 
         $this->denyDeletedTicket($ticket);
@@ -625,6 +680,19 @@ class TicketController extends AbstractController
                 $data['status']
             );
         }
+
+        $auditLogService->log(
+            'TICKET_STATUS_CHANGED',
+            sprintf(
+                'Ticket "%s" status changed from "%s" to "%s"',
+                $ticket->getTitle(),
+                $oldStatus,
+                $data['status']
+            ),
+            $user,
+            'Ticket',
+            $ticket->getId()
+        );
 
         $entityManager->flush();
 
@@ -800,7 +868,8 @@ class TicketController extends AbstractController
         Ticket $ticket,
         EntityManagerInterface $entityManager,
         ProjectSecurityService $projectSecurityService,
-        ApiResponseService $apiResponse
+        ApiResponseService $apiResponse,
+        AuditLogService $auditLogService
     ): JsonResponse {
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
@@ -828,6 +897,17 @@ class TicketController extends AbstractController
 
         $ticket->setDeleteAt(null);
         $ticket->setUpdateAt(new \DateTimeImmutable());
+
+        $auditLogService->log(
+            'TICKET_RESTORED',
+            sprintf(
+                'Ticket "%s" was restored',
+                $ticket->getTitle()
+            ),
+            $currentUser,
+            'Ticket',
+            $ticket->getId()
+        );
 
         $entityManager->flush();
 

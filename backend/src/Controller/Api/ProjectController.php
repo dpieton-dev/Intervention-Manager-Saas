@@ -16,6 +16,7 @@ use App\Repository\ProjectRepository;
 use App\Repository\UserRepository;
 use App\Service\ApiResponseService;
 use App\Service\ProjectSecurityService;
+use App\Service\AuditLogService;
 use Doctrine\ORM\EntityManagerInterface;
 use OpenApi\Attributes as OA;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -201,7 +202,8 @@ class ProjectController extends AbstractController
         ]
     )]
     #[Route('/api/projects', name: 'api_project_create', methods: ['POST'])]
-    public function create(Request $request, EntityManagerInterface $entityManager, ApiResponseService $apiResponse,ValidatorInterface $validator, SerializerInterface $serializer): JsonResponse 
+    public function create(Request $request, EntityManagerInterface $entityManager, ApiResponseService $apiResponse,
+        ValidatorInterface $validator, SerializerInterface $serializer, AuditLogService $auditLogService): JsonResponse 
     {
         $dto = $serializer->deserialize(
             $request->getContent(),
@@ -235,6 +237,19 @@ class ProjectController extends AbstractController
         }
 
         $entityManager->persist($project);
+        $entityManager->flush();
+
+        /** @var User|null $currentUser */
+        $currentUser = $this->getUser();
+
+        $auditLogService->log(
+            'PROJECT_CREATED',
+            sprintf('Project "%s" was created', $project->getName()),
+            $currentUser instanceof User ? $currentUser : null,
+            'Project',
+            $project->getId()
+        );
+
         $entityManager->flush();
 
         return $apiResponse->success(
@@ -289,7 +304,7 @@ class ProjectController extends AbstractController
     )]
     #[Route('/api/projects/{id}', name: 'api_project_update', methods: ['PUT'])]
     public function update(Project $project, Request $request,EntityManagerInterface $entityManager,
-        ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse, ValidatorInterface $validator,SerializerInterface $serializer): JsonResponse 
+        ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse, ValidatorInterface $validator,SerializerInterface $serializer, AuditLogService $auditLogService): JsonResponse 
     {
         $this->denyDeletedProject($project);
 
@@ -338,7 +353,23 @@ class ProjectController extends AbstractController
             throw new ValidationException($apiResponse->formatValidationErrors($projectErrors));
         }
 
+        $auditLogService->log(
+            'PROJECT_UPDATED',
+            sprintf('Project "%s" was updated', $project->getName()),
+            $currentUser,
+            'Project',
+            $project->getId()
+        );
+
         $entityManager->flush();
+
+        $auditLogService->log(
+            'PROJECT_UPDATED',
+            sprintf('Project "%s" was updated', $project->getName()),
+            $currentUser,
+            'Project',
+            $project->getId()
+        );
 
         return $apiResponse->success(
             $this->formatProject($project),
@@ -367,7 +398,7 @@ class ProjectController extends AbstractController
         ]
     )]
     #[Route('/api/projects/{id}', name: 'api_project_delete', methods: ['DELETE'])]
-    public function delete(Project $project, EntityManagerInterface $entityManager, ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse): JsonResponse 
+    public function delete(Project $project, EntityManagerInterface $entityManager, ProjectSecurityService $projectSecurityService, ApiResponseService $apiResponse, AuditLogService $auditLogService): JsonResponse 
     {
         $this->denyDeletedProject($project);
 
@@ -390,6 +421,14 @@ class ProjectController extends AbstractController
 
         // Soft delete : on ne supprime pas physiquement le projet
         $project->setDeletedAt(new \DateTimeImmutable());
+
+        $auditLogService->log(
+            'PROJECT_DELETED',
+            sprintf('Project "%s" was soft deleted', $project->getName()),
+            $currentUser,
+            'Project',
+            $project->getId()
+        );
 
         $entityManager->flush();
 
@@ -514,7 +553,7 @@ class ProjectController extends AbstractController
     )]
     #[Route('/api/projects/{id}/members', name: 'api_project_add_member', methods: ['POST'])]
     public function addMember(Project $project,Request $request,UserRepository $userRepository,ProjectRoleRepository $projectRoleRepository,
-        EntityManagerInterface $entityManager,ProjectSecurityService $projectSecurityService,ApiResponseService $apiResponse): JsonResponse 
+        EntityManagerInterface $entityManager,ProjectSecurityService $projectSecurityService,ApiResponseService $apiResponse, AuditLogService $auditLogService): JsonResponse 
     {
         $this->denyDeletedProject($project);
 
@@ -568,6 +607,20 @@ class ProjectController extends AbstractController
         $member->setProjectRole($projectRole);
 
         $entityManager->persist($member);
+
+        $auditLogService->log(
+            'PROJECT_MEMBER_ADDED',
+            sprintf(
+                'User "%s" was added to project "%s" with role "%s"',
+                $user->getEmail(),
+                $project->getName(),
+                $projectRole->getName()
+            ),
+            $currentUser,
+            'Project',
+            $project->getId()
+        );
+
         $entityManager->flush();
 
         return $apiResponse->success([
@@ -717,7 +770,8 @@ class ProjectController extends AbstractController
         Project $project,
         EntityManagerInterface $entityManager,
         ProjectSecurityService $projectSecurityService,
-        ApiResponseService $apiResponse
+        ApiResponseService $apiResponse,
+        AuditLogService $auditLogService
     ): JsonResponse {
 
         /** @var User|null $currentUser */
@@ -748,6 +802,14 @@ class ProjectController extends AbstractController
         }
 
         $project->setDeletedAt(null);
+
+        $auditLogService->log(
+            'PROJECT_RESTORED',
+            sprintf('Project "%s" was restored', $project->getName()),
+            $currentUser,
+            'Project',
+            $project->getId()
+        );
 
         $entityManager->flush();
 

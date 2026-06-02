@@ -100,6 +100,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $deletedAt = null;
 
+    /**
+     * @var Collection<int, AuditLog>
+     */
+    #[ORM\OneToMany(targetEntity: AuditLog::class, mappedBy: 'createdBy')]
+    private Collection $auditLogs;
+
+
+
     public function __construct()
     {
         $this->createdAt = new DateTimeImmutable();
@@ -111,6 +119,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->ticketAttachments = new ArrayCollection();
         $this->notifications = new ArrayCollection();
         $this->projectPresences = new ArrayCollection();
+        $this->auditLogs = new ArrayCollection();
     }
     
     public function getId(): ?int
@@ -510,4 +519,35 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
         return $this;
     }
+
+    /**
+     * @return Collection<int, AuditLog>
+     */
+    public function getAuditLogs(): Collection
+    {
+        return $this->auditLogs;
+    }
+
+    public function addAuditLog(AuditLog $auditLog): static
+    {
+        if (!$this->auditLogs->contains($auditLog)) {
+            $this->auditLogs->add($auditLog);
+            $auditLog->setCreatedBy($this);
+        }
+
+        return $this;
+    }
+
+    public function removeAuditLog(AuditLog $auditLog): static
+    {
+        if ($this->auditLogs->removeElement($auditLog)) {
+            // set the owning side to null (unless already changed)
+            if ($auditLog->getCreatedBy() === $this) {
+                $auditLog->setCreatedBy(null);
+            }
+        }
+
+        return $this;
+    }
+
 }

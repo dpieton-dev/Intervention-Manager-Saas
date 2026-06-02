@@ -16,19 +16,16 @@ class UserChecker implements UserCheckerInterface
         }
 
         if ($user->getDeletedAt() !== null) {
-            throw new CustomUserMessageAccountStatusException(
-                'Your account has been deleted.'
-            );
+            throw new CustomUserMessageAccountStatusException('Your account has been deleted.');
         }
 
         if (!$user->isEnabled()) {
-            throw new CustomUserMessageAccountStatusException(
-                'Your account has been disabled.'
-            );
+            throw new CustomUserMessageAccountStatusException('Your account has been disabled.');
         }
     }
 
     public function checkPostAuth(UserInterface $user): void
-    {
+    { 
+              
     }
 }

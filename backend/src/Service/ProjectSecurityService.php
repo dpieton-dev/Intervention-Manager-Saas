@@ -12,7 +12,8 @@ class ProjectSecurityService
      */
     public function isProjectMember(Project $project, User $user): bool
     {
-        foreach ($project->getMembers() as $member) {
+        foreach ($project->getMembers() as $member)
+        {
             if ($member->getUser()?->getId() === $user->getId()) {
                 return true;
             }
@@ -28,14 +29,13 @@ class ProjectSecurityService
     {
         foreach ($project->getMembers() as $member)
         {
-            if (
-                $member->getUser()?->getId() === $user->getId()
-                && $member->getProjectRole()?->getCode() === $roleCode
-            ) {
+            if ($member->getUser()?->getId() === $user->getId() && $member->getProjectRole()?->getCode() === $roleCode) 
+            {
                 return true;
             }
         }
 
         return false;
     }
+
 }
