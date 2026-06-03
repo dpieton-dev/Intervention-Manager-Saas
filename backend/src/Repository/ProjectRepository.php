@@ -88,4 +88,13 @@ class ProjectRepository extends ServiceEntityRepository
             ],
         ];
     }
+
+    public function countDeletedProjects(): int
+    {
+        return (int) $this->createQueryBuilder('p')
+            ->select('COUNT(p.id)')
+            ->andWhere('p.deletedAt IS NOT NULL')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
 }
