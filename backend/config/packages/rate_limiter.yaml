@@ -1,0 +1,27 @@
+framework:
+    rate_limiter:
+
+        login:
+            policy: fixed_window
+            limit: 5
+            interval: '15 minutes'
+
+        forgot_password:
+            policy: fixed_window
+            limit: 3
+            interval: '1 hour'
+
+        reset_password:
+            policy: fixed_window
+            limit: 5
+            interval: '1 hour'
+        
+        upload:
+            policy: fixed_window
+            limit: 20
+            interval: '1 hour'
+
+        api:
+            policy: sliding_window
+            limit: 200
+            interval: '15 minutes'

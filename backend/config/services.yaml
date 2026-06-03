@@ -34,6 +34,30 @@ services:
                 event: Symfony\Component\Security\Http\Event\LoginFailureEvent,
                 method: onLoginFailure
             }
+            
+    App\Service\RateLimiterService:
+        arguments:
+            $loginLimiter: '@limiter.login'
+            $forgotPasswordLimiter: '@limiter.forgot_password'
+            $resetPasswordLimiter: '@limiter.reset_password'
+            $uploadLimiter: '@limiter.upload'
+            $apiLimiter: '@limiter.api'
+
+    App\Security\LoginRateLimitListener:
+        tags:
+            -
+                name: kernel.event_listener
+                event: kernel.request
+                method: onKernelRequest
+                priority: 100
+    
+    App\Security\ApiRateLimitListener:
+        tags:
+            -
+                name: kernel.event_listener
+                event: kernel.request
+                method: onKernelRequest
+                priority: 50
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

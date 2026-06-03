@@ -9,6 +9,7 @@ use App\Exception\ValidationException;
 use App\Repository\UserRepository;
 use App\Service\ApiResponseService;
 use App\Service\AuditLogService;
+use App\Service\RateLimiterService;
 use Doctrine\ORM\EntityManagerInterface;
 use OpenApi\Attributes as OA;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -35,8 +36,11 @@ class PasswordResetController extends AbstractController
         UserRepository $userRepository,
         EntityManagerInterface $entityManager,
         ApiResponseService $apiResponse,
-        AuditLogService $auditLogService
+        AuditLogService $auditLogService,
+        RateLimiterService $rateLimiterService
     ): JsonResponse {
+
+        $rateLimiterService->consumeForgotPassword($request);
 
         $dto = $serializer->deserialize(
             $request->getContent(),
@@ -109,8 +113,11 @@ class PasswordResetController extends AbstractController
         EntityManagerInterface $entityManager,
         UserPasswordHasherInterface $passwordHasher,
         ApiResponseService $apiResponse,
-        AuditLogService $auditLogService
+        AuditLogService $auditLogService,
+        RateLimiterService $rateLimiterService
     ): JsonResponse {
+
+        $rateLimiterService->consumeResetPassword($request);
 
         $dto = $serializer->deserialize(
             $request->getContent(),

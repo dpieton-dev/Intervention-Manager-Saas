@@ -14,6 +14,7 @@ use App\Service\ProjectSecurityService;
 use App\Service\TicketActivityService;
 use App\Service\NotificationService;
 use App\Service\AuditLogService;
+use App\Service\RateLimiterService;
 use Doctrine\ORM\EntityManagerInterface;
 use OpenApi\Attributes as OA;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -157,10 +158,14 @@ class TicketAttachmentController extends AbstractController
         ApiResponseService $apiResponse,
         SluggerInterface $slugger,
         NotificationService $notificationService,
-        AuditLogService $auditLogService
+        AuditLogService $auditLogService,
+        RateLimiterService $rateLimiterService
     ): JsonResponse {
 
         $this->denyDeletedTicket($ticket);
+
+        //RATE LIMIT
+        $rateLimiterService->consumeUpload($request);
 
         /** @var User|null $currentUser */
         $currentUser = $this->getUser();
