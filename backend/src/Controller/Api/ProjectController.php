@@ -7,6 +7,9 @@ use App\Dto\Project\UpdateProjectDto;
 use App\Entity\Project;
 use App\Entity\ProjectMember;
 use App\Entity\User;
+use App\Entity\Ticket;
+use App\Entity\TicketComment;
+use App\Entity\TicketAttachment;
 use App\Exception\ForbiddenException;
 use App\Exception\NotFoundException;
 use App\Exception\UnauthorizedException;
@@ -818,6 +821,100 @@ class ProjectController extends AbstractController
             'Project restored successfully'
         );
     }
+
+    #[OA\Get(
+    path: '/api/projects/{id}/stats',
+    summary: 'Project statistics',
+    description: 'Retrieve project dashboard statistics.',
+    security: [['Bearer' => []]],
+    tags: ['Projects']
+)]
+#[Route('/api/projects/{id}/stats', name: 'api_project_stats', methods: ['GET'])]
+public function stats(
+    Project $project,
+    EntityManagerInterface $entityManager,
+    ProjectSecurityService $projectSecurityService,
+    ApiResponseService $apiResponse
+): JsonResponse {
+    /** @var User $currentUser */
+    $currentUser = $this->getUser();
+
+    $projectSecurityService->denyUnlessProjectMember(
+        $project,
+        $currentUser
+    );
+
+    $ticketRepository = $entityManager->getRepository(Ticket::class);
+    $commentRepository = $entityManager->getRepository(TicketComment::class);
+    $attachmentRepository = $entityManager->getRepository(TicketAttachment::class);
+
+    return $apiResponse->success(
+        [
+            'project' => [
+                'id' => $project->getId(),
+                'name' => $project->getName(),
+            ],
+
+            'members' => count(
+                $project->getMembers()
+            ),
+
+            'tickets' => [
+                'total' => $ticketRepository->count([
+                    'project' => $project,
+                ]),
+
+                'todo' => $ticketRepository->countByProjectAndStatus(
+                    $project,
+                    'todo'
+                ),
+
+                'in_progress' => $ticketRepository->countByProjectAndStatus(
+                    $project,
+                    'in_progress'
+                ),
+
+                'testing' => $ticketRepository->countByProjectAndStatus(
+                    $project,
+                    'testing'
+                ),
+
+                'done' => $ticketRepository->countByProjectAndStatus(
+                    $project,
+                    'done'
+                ),
+            ],
+
+            'priority' => [
+                'low' => $ticketRepository->countByProjectAndPriority(
+                    $project,
+                    'low'
+                ),
+
+                'medium' => $ticketRepository->countByProjectAndPriority(
+                    $project,
+                    'medium'
+                ),
+
+                'high' => $ticketRepository->countByProjectAndPriority(
+                    $project,
+                    'high'
+                ),
+            ],
+
+            'collaboration' => [
+                'comments' => $commentRepository->countByProject(
+                    $project
+                ),
+
+                'attachments' => $attachmentRepository->countByProject(
+                    $project
+                ),
+            ],
+        ],
+        'Project statistics retrieved successfully'
+    );
+}
 
     private function formatProject(Project $project): array
     {

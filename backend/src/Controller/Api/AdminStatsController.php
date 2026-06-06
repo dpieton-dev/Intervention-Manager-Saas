@@ -102,4 +102,102 @@ class AdminStatsController extends AbstractController
             'Admin statistics retrieved successfully'
         );
     }
+
+    #[OA\Get(
+        path: '/api/admin/stats/activity',
+        summary: 'Admin daily activity statistics',
+        description: 'Retrieve today activity counters for admin dashboard.',
+        security: [['Bearer' => []]],
+        tags: ['Admin Stats'],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Admin activity statistics retrieved successfully'
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Access denied'
+            ),
+        ]
+    )]
+    #[Route('/api/admin/stats/activity', name: 'api_admin_stats_activity', methods: ['GET'])]
+    public function activity(
+        EntityManagerInterface $entityManager,
+        ApiResponseService $apiResponse
+    ): JsonResponse {
+        // Début de la journée actuelle
+        $startOfDay = new \DateTimeImmutable('today');
+
+        // Fin de la journée actuelle
+        $endOfDay = new \DateTimeImmutable('tomorrow');
+
+        return $apiResponse->success(
+            [
+                'today' => [
+                    'usersCreated' => $this->countCreatedBetween(
+                        $entityManager,
+                        User::class,
+                        $startOfDay,
+                        $endOfDay
+                    ),
+
+                    'projectsCreated' => $this->countCreatedBetween(
+                        $entityManager,
+                        Project::class,
+                        $startOfDay,
+                        $endOfDay
+                    ),
+
+                    'ticketsCreated' => $this->countCreatedBetween(
+                        $entityManager,
+                        Ticket::class,
+                        $startOfDay,
+                        $endOfDay
+                    ),
+
+                    'commentsCreated' => $this->countCreatedBetween(
+                        $entityManager,
+                        TicketComment::class,
+                        $startOfDay,
+                        $endOfDay
+                    ),
+
+                    'attachmentsUploaded' => $this->countCreatedBetween(
+                        $entityManager,
+                        TicketAttachment::class,
+                        $startOfDay,
+                        $endOfDay
+                    ),
+
+                    'auditLogsCreated' => $this->countCreatedBetween(
+                        $entityManager,
+                        AuditLog::class,
+                        $startOfDay,
+                        $endOfDay
+                    ),
+                ],
+            ],
+            'Admin activity statistics retrieved successfully'
+        );
+    }
+
+    private function countCreatedBetween(
+        EntityManagerInterface $entityManager,
+        string $entityClass,
+        \DateTimeImmutable $start,
+        \DateTimeImmutable $end
+    ): int {
+        return (int) $entityManager
+            ->getRepository($entityClass)
+            ->createQueryBuilder('e')
+            ->select('COUNT(e.id)')
+            ->andWhere('e.createdAt >= :start')
+            ->andWhere('e.createdAt < :end')
+            ->setParameter('start', $start)
+            ->setParameter('end', $end)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    
 }

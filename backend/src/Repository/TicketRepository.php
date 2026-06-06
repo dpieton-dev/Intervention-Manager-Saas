@@ -3,6 +3,7 @@
 namespace App\Repository;
 
 use App\Entity\Ticket;
+use App\Entity\Project;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -143,4 +144,34 @@ class TicketRepository extends ServiceEntityRepository
             ->getSingleScalarResult();
     }
 
+    public function countByProjectAndStatus(
+        Project $project,
+        string $status
+    ): int {
+        return (int) $this->createQueryBuilder('t')
+            ->select('COUNT(t.id)')
+            ->andWhere('t.project = :project')
+            ->andWhere('t.status = :status')
+            ->setParameter('project', $project)
+            ->setParameter('status', $status)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+
+    public function countByProjectAndPriority(
+        Project $project,
+        string $priority
+    ): int {
+        return (int) $this->createQueryBuilder('t')
+            ->select('COUNT(t.id)')
+            ->andWhere('t.project = :project')
+            ->andWhere('t.priority = :priority')
+            ->setParameter('project', $project)
+            ->setParameter('priority', $priority)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    
 }
